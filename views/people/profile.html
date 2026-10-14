@@ -1,0 +1,57 @@
+{{- /* Анкета (templates/profile.html). .u — *users.User, .match_id, .my_vote (-1/0/1), .liked_me, .reasons, .is_me.
+   Формы — обычные POST с {{$.Csrf}} (скрытое поле _csrf ядра). */ -}}
+{{$u := .u}}
+<section class="profile">
+  <a class="back" href="/nearby" data-back>{{template "i-back"}} Назад</a>
+  <div class="profile-grid">
+    <div class="gallery" data-gallery>
+      {{range $i, $p := $u.Gallery}}<img src="{{$p}}" alt="Фото {{add $i 1}}: {{$u.Name}}" {{if $i}}hidden{{end}}>{{end}}
+      {{if gt (len $u.Gallery) 1}}<div class="card-bars">{{range $i, $p := $u.Gallery}}<i {{if not $i}}class="on"{{end}}></i>{{end}}</div>
+      <button class="gal-prev" type="button" aria-label="Предыдущее фото"></button><button class="gal-next" type="button" aria-label="Следующее фото"></button>{{end}}
+    </div>
+    <div class="profile-body">
+      <h1>{{$u.Name}}, {{$u.Age}} {{if $u.IsVerified}}{{template "badge-verified"}}{{end}}</h1>
+      <p class="muted">{{if $u.Online}}<span class="dot-online"></span> Онлайн · {{else}}Был(а) {{ago $u.LastSeen}} · {{end}}{{$u.City}}{{if not .is_me}}, {{$u.DistLabel}}{{end}}</p>
+      {{if .liked_me}}<p class="pill pill-accent">{{template "i-heart"}} Вы понравились {{$u.Name}}</p>{{end}}
+
+      {{if not .is_me}}
+      <div class="row profile-actions">
+        {{if .match_id}}
+          <a class="btn btn-primary" href="/chat/{{.match_id}}">{{template "i-chat"}} Написать</a>
+        {{else}}
+          <form method="post" action="/u/{{$u.Id}}/vote">{{$.Csrf}}<input type="hidden" name="liked" value="0">
+            <button class="btn btn-ghost {{if eq .my_vote 0}}is-on{{end}}" type="submit">{{template "i-x"}} Нет</button></form>
+          <form method="post" action="/u/{{$u.Id}}/vote">{{$.Csrf}}<input type="hidden" name="liked" value="1">
+            <button class="btn btn-like" type="submit" {{if eq .my_vote 1}}disabled{{end}}>{{template "i-heart"}} {{if eq .my_vote 1}}Симпатия отправлена{{else}}Нравится{{end}}</button></form>
+        {{end}}
+      </div>
+      {{else}}
+      <a class="btn btn-ghost" href="/me">Редактировать профиль</a>
+      {{end}}
+
+      <dl class="facts">
+        {{if $u.IntentLabel}}<div><dt>Ищет</dt><dd>{{$u.IntentLabel}}</dd></div>{{end}}
+        <div><dt>Пол</dt><dd>{{gender $u.Gender}}</dd></div>
+        {{if $u.Height}}<div><dt>Рост</dt><dd>{{$u.Height}} см</dd></div>{{end}}
+      </dl>
+      {{if $u.Bio}}<h2 class="h3">О себе</h2><p class="bio">{{$u.Bio}}</p>{{end}}
+      {{if $u.InterestList}}<h2 class="h3">Интересы</h2><ul class="chips">{{range $u.InterestList}}<li>{{.}}</li>{{end}}</ul>{{end}}
+
+      {{if not .is_me}}
+      <details class="safety">
+        <summary>{{template "i-flag"}} Пожаловаться или заблокировать</summary>
+        <form method="post" action="/u/{{$u.Id}}/report" class="stack">
+          {{$.Csrf}}
+          <fieldset class="field"><legend>Что не так?</legend>
+            {{range .reasons}}<label class="check"><input type="radio" name="reason" value="{{.}}" required> <span>{{.}}</span></label>{{end}}
+          </fieldset>
+          <label class="check"><input type="checkbox" name="block" value="1" checked> <span>Также заблокировать</span></label>
+          <button class="btn btn-danger" type="submit">Отправить жалобу</button>
+        </form>
+        <form method="post" action="/u/{{$u.Id}}/block">{{$.Csrf}}
+          <button class="btn btn-ghost" type="submit">Просто заблокировать</button></form>
+      </details>
+      {{end}}
+    </div>
+  </div>
+</section>

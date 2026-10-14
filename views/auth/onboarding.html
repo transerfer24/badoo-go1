@@ -1,0 +1,34 @@
+{{.View.SetTitle "Расскажите о себе"}}
+<section class="auth auth-wide">
+  <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span>amura</span></a>
+  <h1>Расскажите о себе</h1>
+  <p class="muted">Это увидят другие. Всё можно поменять позже.</p>
+  {{if .error}}<p class="alert" role="alert">{{.error}}</p>{{end}}
+  <form method="post" action="/onboarding" class="stack" data-geo>
+    {{.Csrf}}
+    <input type="hidden" name="lat"><input type="hidden" name="lng">
+    <label class="field"><span>Имя</span><input name="name" required minlength="2" maxlength="40" autocomplete="given-name"></label>
+    <label class="field"><span>Дата рождения</span><input type="date" name="birthdate" required max="{{.max}}"></label>
+    <fieldset class="field"><legend>Я</legend>
+      <div class="seg">
+        <label><input type="radio" name="gender" value="f" required><span>Женщина</span></label>
+        <label><input type="radio" name="gender" value="m"><span>Мужчина</span></label>
+        <label><input type="radio" name="gender" value="x"><span>Другое</span></label>
+      </div>
+    </fieldset>
+    <fieldset class="field"><legend>Ищу</legend>
+      <div class="seg">
+        <label><input type="radio" name="seeking" value="f" required><span>Женщин</span></label>
+        <label><input type="radio" name="seeking" value="m"><span>Мужчин</span></label>
+        <label><input type="radio" name="seeking" value="any"><span>Всех</span></label>
+      </div>
+    </fieldset>
+    <label class="field"><span>Город</span>
+      <select name="city" required><option value="">Выберите город</option>{{range .cities}}<option data-lat="{{.Lat}}" data-lng="{{.Lng}}">{{.Name}}</option>{{end}}</select>
+      <small class="muted" data-geo-status>Можно уточнить по геолокации — другим видно только расстояние.</small>
+    </label>
+    <button type="button" class="btn btn-ghost" data-geo-btn>{{template "i-pin"}} Определить точнее</button>
+    <label class="field"><span>О себе <small class="muted">необязательно</small></span><textarea name="bio" rows="3" maxlength="500" placeholder="Чем вы живёте, что ищете?"></textarea></label>
+    <button class="btn btn-primary btn-block" type="submit">Готово</button>
+  </form>
+</section>

@@ -1,0 +1,57 @@
+# Выкладка: каждый пуш в main (и вызов из core-update) → тесты + проверка уязвимостей → deploy/deploy.sh
+# (сборка, заливка, миграции, перезапуск, проверка HEALTH_URL, откат при сбое).
+#
+# Секреты (Settings → Secrets and variables → Actions):
+#   GO1_READ_TOKEN      — токен GitHub с правом чтения репозитория ядра transerfer24/go1
+#   DEPLOY_SSH_KEY      — приватный SSH-ключ хостинга
+#   DEPLOY_KNOWN_HOSTS  — (необязательно) строка known_hosts сервера; без неё ключ сервера берётся ssh-keyscan
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency: deploy # две выкладки одновременно не идут
+    env:
+      GOPRIVATE: whales.team/*
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # из core-update — свежая main с обновлённым ядром, а не коммит, с которого он стартовал
+          ref: ${{ github.event_name == 'push' && github.sha || 'main' }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable # свежий Go — с исправлениями безопасности стандартной библиотеки
+
+      - name: Доступ к приватному ядру Go1
+        run: git config --global url."https://x-access-token:${{ secrets.GO1_READ_TOKEN }}@github.com/transerfer24/go1".insteadOf "https://github.com/transerfer24/go1"
+
+      - name: Тесты
+        run: go test ./...
+
+      - name: Уязвимости (govulncheck)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+      - name: SSH к хостингу
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          . deploy/deploy.env
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$DEPLOY_HOSTNAME" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          printf 'Host %s\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/deploy_key\n' "$DEPLOY_SSH" "$DEPLOY_HOSTNAME" "$DEPLOY_USER" > ~/.ssh/config
+
+      - name: Выкладка
+        run: ./deploy/deploy.sh

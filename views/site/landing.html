@@ -1,0 +1,25 @@
+{{.View.SetTitle "Amura — знакомства рядом"}}
+<section class="landing">
+  <header class="landing-top">
+    <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span>amura</span></a>
+    <a class="btn btn-ghost" href="/login">Войти</a>
+  </header>
+  <div class="landing-hero">
+    <div class="landing-copy">
+      <p class="eyebrow">Знакомства без фейков</p>
+      <h1>Настоящие люди рядом.<br>Проверенные по селфи.</h1>
+      <p class="lead">Писать в Amura могут только подтверждённые анкеты. Ваши фильтры работают так, как вы их выставили, — мы не подсовываем «похожих». А Premium отменяется одной кнопкой.</p>
+      <div class="landing-cta">
+        <a class="btn btn-primary btn-lg" href="/login">Создать анкету</a>
+        <a class="btn btn-ghost btn-lg" href="/login">У меня уже есть аккаунт</a>
+      </div>
+      {{if .count}}<p class="muted small">Сейчас в базе {{.count}} анкет.</p>{{end}}
+    </div>
+    <ol class="landing-steps">
+      <li><b>1</b><span><strong>Анкета за минуту</strong> Имя, возраст, город и пара фото.</span></li>
+      <li><b>2</b><span><strong>Селфи с жестом</strong> Подтверждаем, что на фото вы.</span></li>
+      <li><b>3</b><span><strong>Взаимная симпатия</strong> Свайпайте или смотрите, кто рядом, — чат откроется, когда понравитесь друг другу.</span></li>
+    </ol>
+  </div>
+  <footer class="landing-foot muted small">Только для тех, кому 18+. © Amura</footer>
+</section>

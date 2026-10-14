@@ -1,0 +1,39 @@
+{{.View.SetTitle "Настройки"}}
+<section class="narrow">
+  <header class="page-head"><h1>Настройки</h1></header>
+  <form method="post" action="/settings" class="stack form-card">
+    {{.Csrf}}
+    <h2 class="h3">Кого показывать</h2>
+    <p class="muted small">Фильтры работают строго: если подходящих анкет нет, мы так и скажем, а не покажем «похожих».</p>
+    <label class="field"><span>Показывать</span><select name="seeking">
+      <option value="f" {{if eq .me.Seeking "f"}}selected{{end}}>Женщин</option>
+      <option value="m" {{if eq .me.Seeking "m"}}selected{{end}}>Мужчин</option>
+      <option value="any" {{if eq .me.Seeking "any"}}selected{{end}}>Всех</option></select></label>
+    <div class="cols">
+      <label class="field"><span>Возраст от</span><input type="number" name="age_min" min="18" max="99" value="{{.me.AgeMin}}"></label>
+      <label class="field"><span>до</span><input type="number" name="age_max" min="18" max="99" value="{{.me.AgeMax}}"></label>
+    </div>
+    <label class="field"><span>Радиус: <output data-range-out>{{.me.MaxKm}}</output> км</span><input type="range" name="max_km" min="1" max="300" value="{{.me.MaxKm}}" data-range></label>
+    <label class="check"><input type="checkbox" name="verified_only" value="1" {{if .me.VerifiedOnly}}checked{{end}}> <span>Только подтверждённые анкеты</span></label>
+    <h2 class="h3">Приватность</h2>
+    <label class="check"><input type="checkbox" name="invisible" value="1" {{if .me.Invisible}}checked{{end}} {{if not .me.IsPremium}}disabled{{end}}>
+      <span>Невидимка — вас видят только те, кого вы лайкнули, и вы не появляетесь в «Гостях» {{if not .me.IsPremium}}<a href="/premium" class="pill pill-premium">Premium</a>{{end}}</span></label>
+    <button class="btn btn-primary" type="submit">Сохранить</button>
+  </form>
+
+  <div class="form-card stack">
+    <h2 class="h3">Аккаунт</h2>
+    <p class="muted small">{{.me.Email}}</p>
+    <form method="post" action="/logout">{{.Csrf}}<button class="btn btn-ghost" type="submit">Выйти</button></form>
+  </div>
+
+  <details class="form-card danger-zone">
+    <summary>Удалить аккаунт</summary>
+    <form method="post" action="/settings/delete" class="stack">
+      {{.Csrf}}
+      <p class="muted small">Удалим анкету, фото, селфи для верификации, симпатии и переписку. Восстановить будет нельзя.</p>
+      <label class="field"><span>Введите УДАЛИТЬ</span><input name="confirm" autocomplete="off" required></label>
+      <button class="btn btn-danger" type="submit">Удалить навсегда</button>
+    </form>
+  </details>
+</section>

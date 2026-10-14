@@ -1,0 +1,27 @@
+{{.View.SetTitle "Amura Premium"}}
+<section class="narrow premium">
+  <header class="page-head"><h1>{{template "i-crown"}} Amura Premium</h1></header>
+  {{if .me.IsPremium}}
+  <div class="form-card stack">
+    <p class="pill pill-premium">Активен до {{.me.PremiumDate}}</p>
+    <p class="muted">Автопродления в тестовом режиме нет. Отмена — одна кнопка, без анкет и звонков.</p>
+    <form method="post" action="/premium/cancel">{{.Csrf}}<button class="btn btn-ghost" type="submit">Отменить подписку</button></form>
+  </div>
+  {{end}}
+  <ul class="perks">
+    <li>{{template "i-heart"}}<span><b>Кто вас лайкнул</b> Сразу видите всех, кому понравились.</span></li>
+    <li>{{template "i-undo"}}<span><b>Вернуть анкету</b> Случайно смахнули влево? Вернём.</span></li>
+    <li>{{template "i-eye"}}<span><b>Невидимка</b> Смотрите анкеты, не появляясь в «Гостях».</span></li>
+  </ul>
+  <p class="muted small">Знакомства, чат, фильтры и верификация бесплатны всегда.</p>
+  <div class="plans">
+    {{range .plans}}
+    <form method="post" action="/premium/activate" class="plan {{if .Accent}}plan-accent{{end}}">
+      {{$.Csrf}}<input type="hidden" name="plan" value="{{.Id}}">
+      <h2>{{.Title}}</h2><p class="price">{{.Price}}</p>{{if .Per}}<p class="muted small">{{.Per}}</p>{{end}}
+      <button class="btn {{if .Accent}}btn-premium{{else}}btn-ghost{{end}} btn-block" type="submit">{{if $.me.IsPremium}}Продлить{{else}}Выбрать{{end}}</button>
+    </form>
+    {{end}}
+  </div>
+  {{if eq .App.Env "dev"}}<p class="hint small">Тестовый режим: оплата не списывается, премиум включается сразу.</p>{{end}}
+</section>

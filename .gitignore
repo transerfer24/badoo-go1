@@ -1,0 +1,12 @@
+.env
+*.local.go
+config/local.go
+runtime/
+*.db
+*.sqlite
+/build/
+.idea/
+.DS_Store
+
+# документация всегда в репозитории (глобальный игнор *.md на машине автора её прятал)
+!*.md

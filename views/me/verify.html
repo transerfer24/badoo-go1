@@ -1,0 +1,23 @@
+{{.View.SetTitle "Верификация"}}
+<section class="narrow">
+  <header class="page-head"><h1>Верификация</h1></header>
+  {{if .me.IsVerified}}
+  <div class="form-card stack center">
+    <div class="big-ok">{{template "i-check"}}</div>
+    <h2>Фото подтверждено</h2>
+    <p class="muted">Рядом с именем теперь стоит отметка. Можно писать сообщения.</p>
+    <a class="btn btn-primary" href="/encounters">К встречам</a>
+  </div>
+  {{else if eq .me.Verified 1}}
+  <div class="form-card"><h2>Селфи на проверке</h2><p class="muted">Модератор сверит его с фото в анкете. Обычно это до часа.</p></div>
+  {{else}}
+  <form class="form-card stack" method="post" action="/verify" enctype="multipart/form-data">
+    {{.Csrf}}
+    <p>Сделайте селфи и повторите жест:</p>
+    <p class="pose">{{.pose}}</p>
+    <p class="muted small">Селфи видят только модераторы. Оно не появится в анкете и удаляется вместе с аккаунтом.</p>
+    <label class="field"><span>Селфи</span><input type="file" name="selfie" accept="image/jpeg,image/png" capture="user" required></label>
+    <button class="btn btn-primary" type="submit">Отправить</button>
+  </form>
+  {{end}}
+</section>

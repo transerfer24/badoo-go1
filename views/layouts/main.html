@@ -1,0 +1,45 @@
+{{- /*
+Лейаут Amura (перенос backend/templates/layout.html). Что изменилось:
+  .Me / .Counts из Page → {{$me := me .Ctx}} и {{$counts := counts .Ctx}} — функции шаблона, один раз на запрос;
+  .Active → $active из c.View.Params["active"]; .CSRF meta → {{.CsrfMeta}} (app.js читает meta[name=csrf-token]);
+  .Flash строкой → .Flash (map) из сессии; {{block "content"}} → {{.Content}}; .Dev → eq .App.Env "dev".
+*/ -}}
+{{- $me := me .Ctx -}}
+{{- $counts := counts .Ctx -}}
+{{- $active := index .View.Params "active" -}}
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{if .View.Title}}{{.View.Title}} · {{end}}Amura</title>
+<meta name="theme-color" content="#0E7C74">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+{{.CsrfMeta}}
+</head>
+<body class="{{if $me}}{{if $me.Onboarded}}has-nav{{end}}{{end}}">
+{{if $me}}{{if $me.Onboarded}}
+<nav class="nav" aria-label="Основное меню">
+  <a class="nav-logo" href="/encounters"><img src="/static/logo.svg" alt="" width="28" height="28"><span>amura</span></a>
+  <a href="/encounters" class="{{if eq $active "encounters"}}on{{end}}" {{if eq $active "encounters"}}aria-current="page"{{end}}>{{template "i-cards"}}<span>Встречи</span></a>
+  <a href="/nearby" class="{{if eq $active "nearby"}}on{{end}}" {{if eq $active "nearby"}}aria-current="page"{{end}}>{{template "i-pin"}}<span>Рядом</span></a>
+  <a href="/likes" class="{{if eq $active "likes"}}on{{end}}" {{if eq $active "likes"}}aria-current="page"{{end}}>{{template "i-heart"}}<span>Симпатии</span>{{if $counts.Likes}}<b class="count" data-count="likes">{{$counts.Likes}}</b>{{else}}<b class="count" data-count="likes" hidden></b>{{end}}</a>
+  <a href="/messages" class="{{if eq $active "messages"}}on{{end}}" {{if eq $active "messages"}}aria-current="page"{{end}}>{{template "i-chat"}}<span>Чаты</span>{{if $counts.Unread}}<b class="count" data-count="unread">{{$counts.Unread}}</b>{{else}}<b class="count" data-count="unread" hidden></b>{{end}}</a>
+  <a href="/me" class="{{if eq $active "me"}}on{{end}}" {{if eq $active "me"}}aria-current="page"{{end}}>
+    <img class="nav-avatar" src="{{$me.Avatar}}" alt=""><span>Профиль</span></a>
+  {{if not $me.IsPremium}}<a class="nav-premium" href="/premium">{{template "i-crown"}}<span>Premium</span></a>{{end}}
+</nav>
+{{end}}{{end}}
+<main class="main" id="main">
+  {{range $k, $v := .Flash}}<div class="flash" role="status">{{$v}}</div>{{end}}
+  {{.Content}}
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="/static/app.js" defer></script>
+{{block "scripts" .}}{{end}}
+</body>
+</html>

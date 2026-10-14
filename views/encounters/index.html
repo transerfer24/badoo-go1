@@ -1,0 +1,48 @@
+{{- /* Встречи (перенос templates/encounters.html). Колода грузится из /api/encounters (web/static/app.js),
+   здесь — каркас, диалог «взаимно» и <template> карточки. .me — текущий пользователь из контроллера. */ -}}
+<section class="enc" data-encounters data-premium="{{.me.IsPremium}}">
+  <header class="page-head">
+    <h1>Встречи</h1>
+    <a class="btn btn-ghost btn-sm" href="/settings">{{template "i-filter"}} Фильтры</a>
+  </header>
+  <div class="deck" aria-live="polite">
+    <div class="deck-loading" data-loading><div class="skeleton card-skeleton"></div></div>
+    <div class="empty deck-empty" data-empty hidden>
+      <h2>Анкеты закончились</h2>
+      <p class="muted">По вашим фильтрам больше никого нет. Мы не расширяем их сами — поменяйте возраст или расстояние, если хотите увидеть больше людей.</p>
+      <div class="row">
+        <a class="btn btn-primary" href="/settings">Изменить фильтры</a>
+        <a class="btn btn-ghost" href="/nearby">Люди рядом</a>
+      </div>
+    </div>
+  </div>
+  <div class="deck-actions">
+    <button class="act act-undo" data-undo type="button" aria-label="Вернуть прошлую анкету" title="Вернуть (Premium)">{{template "i-undo"}}</button>
+    <button class="act act-pass" data-pass type="button" aria-label="Не нравится">{{template "i-x"}}</button>
+    <button class="act act-like" data-like type="button" aria-label="Нравится">{{template "i-heart"}}</button>
+  </div>
+  <p class="muted small center keys-hint">Клавиши: ← нет, → да, Backspace — вернуть</p>
+</section>
+
+<dialog class="match" data-match-dialog>
+  <div class="match-in">
+    <div class="match-pics"><img data-match-me src="{{.me.Avatar}}" alt=""><img data-match-other alt=""></div>
+    <h2>Это взаимно!</h2>
+    <p class="muted">Вы с <b data-match-name></b> понравились друг другу.</p>
+    <a class="btn btn-primary btn-block" data-match-chat href="#">Написать</a>
+    <button class="btn btn-ghost btn-block" type="button" data-match-close>Смотреть дальше</button>
+  </div>
+</dialog>
+<template id="card-tpl">
+  <article class="card" tabindex="-1">
+    <div class="card-photos"></div>
+    <div class="card-bars"></div>
+    <span class="stamp stamp-like">ДА</span><span class="stamp stamp-pass">НЕТ</span>
+    <a class="card-info">
+      <h2><span class="card-name"></span><span class="card-verified" hidden>{{template "badge-verified"}}</span></h2>
+      <p class="card-meta"></p>
+      <p class="card-bio"></p>
+      <ul class="chips card-chips"></ul>
+    </a>
+  </article>
+</template>

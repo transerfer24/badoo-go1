@@ -1,0 +1,26 @@
+{{- /* Чат (templates/chat.html). .match_id, .peer — *users.User, .messages — []chat.Msg, .can_send.
+   История уходит в JSON-скрипт: в контексте <script> html/template сам сериализует значение в JSON
+   (в оригинале для этого была функция json). Живые сообщения — SSE /api/events в app.js. */ -}}
+<section class="chat" data-chat="{{.match_id}}">
+  <header class="chat-head">
+    <a class="back" href="/messages" aria-label="К чатам">{{template "i-back"}}</a>
+    <a class="chat-peer" href="/u/{{.peer.Id}}">
+      <img class="ava" src="{{.peer.Avatar}}" alt="">
+      <span><b>{{.peer.Name}}, {{.peer.Age}}</b> {{if .peer.IsVerified}}{{template "badge-verified"}}{{end}}<br>
+      <span class="muted small">{{if .peer.Online}}онлайн{{else}}был(а) {{ago .peer.LastSeen}}{{end}}</span></span>
+    </a>
+  </header>
+  <div class="chat-log" data-log>
+    {{if not .messages}}<p class="chat-empty muted center" data-chat-empty>Вы понравились друг другу. Начните с вопроса о чём-то из анкеты — это работает лучше, чем «привет».</p>{{end}}
+  </div>
+  {{if .can_send}}
+  <form class="chat-form" data-chat-form>
+    <label class="sr" for="msg">Сообщение</label>
+    <textarea id="msg" name="body" rows="1" maxlength="2000" placeholder="Сообщение…" required></textarea>
+    <button class="btn btn-primary btn-icon" type="submit" aria-label="Отправить">{{template "i-send"}}</button>
+  </form>
+  {{else}}
+  <div class="chat-locked"><p>Чтобы писать, подтвердите фото — это защищает всех от фейков.</p><a class="btn btn-primary" href="/verify">Пройти верификацию</a></div>
+  {{end}}
+</section>
+{{define "scripts"}}<script type="application/json" id="chat-data">{{.messages}}</script>{{end}}

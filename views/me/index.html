@@ -1,0 +1,71 @@
+{{.View.SetTitle "Мой профиль"}}
+<section class="me">
+  <header class="page-head">
+    <h1>Мой профиль</h1>
+    <div class="row">
+      <a class="btn btn-ghost btn-sm" href="/u/{{.me.Id}}">{{template "i-eye"}} Как меня видят</a>
+      <a class="btn btn-ghost btn-sm" href="/settings">{{template "i-gear"}} Настройки</a>
+    </div>
+  </header>
+  {{if .error}}<p class="alert" role="alert">{{.error}}</p>{{end}}
+
+  <div class="me-status">
+    {{if .me.IsVerified}}<div class="pill pill-ok">{{template "i-check"}} Фото подтверждено</div>
+    {{else if eq .me.Verified 1}}<div class="pill">Селфи на проверке</div>
+    {{else}}<a class="pill pill-warn" href="/verify">{{template "i-check"}} Пройдите верификацию, чтобы писать сообщения</a>{{end}}
+    {{if .me.IsPremium}}<a class="pill pill-premium" href="/premium">{{template "i-crown"}} Premium до {{.me.PremiumDate}}</a>{{end}}
+  </div>
+
+  <h2 class="h3">Фото <span class="muted small">{{len .photos}} из {{.max_photos}}</span></h2>
+  <div class="photos">
+    {{range $i, $p := .photos}}
+    <figure class="photo">
+      <img src="{{$p.Url}}" alt="Моё фото {{add $i 1}}">
+      {{if eq $i 0}}<figcaption class="photo-main">Главное</figcaption>{{end}}
+      <div class="photo-tools">
+        {{if $i}}<form method="post" action="/me/photos/{{$p.Id}}/main">{{$.Csrf}}<button class="btn btn-xs" type="submit">Сделать главным</button></form>{{end}}
+        <form method="post" action="/me/photos/{{$p.Id}}/delete">{{$.Csrf}}<button class="btn btn-xs btn-danger" type="submit" aria-label="Удалить фото {{add $i 1}}">Удалить</button></form>
+      </div>
+    </figure>
+    {{end}}
+    {{if lt (len .photos) .max_photos}}
+    <form class="photo photo-add" method="post" action="/me/photos" enctype="multipart/form-data" data-autosubmit>
+      {{.Csrf}}
+      <label><input type="file" name="photo" accept="image/jpeg,image/png" required><span>+<br><small>JPG или PNG</small></span></label>
+      <noscript><button class="btn btn-sm" type="submit">Загрузить</button></noscript>
+    </form>
+    {{end}}
+  </div>
+
+  <form method="post" action="/me" class="stack form-card" data-geo>
+    {{.Csrf}}
+    <input type="hidden" name="lat"><input type="hidden" name="lng">
+    <div class="cols">
+      <label class="field"><span>Имя</span><input name="name" value="{{.me.Name}}" required minlength="2" maxlength="40"></label>
+      <label class="field"><span>Дата рождения</span><input type="date" name="birthdate" value="{{.me.Birthdate}}" required max="{{.max}}"></label>
+    </div>
+    <div class="cols">
+      <label class="field"><span>Пол</span><select name="gender">
+        <option value="f" {{if eq .me.Gender "f"}}selected{{end}}>Женщина</option>
+        <option value="m" {{if eq .me.Gender "m"}}selected{{end}}>Мужчина</option>
+        <option value="x" {{if eq .me.Gender "x"}}selected{{end}}>Другое</option></select></label>
+      <label class="field"><span>Ищу</span><select name="seeking">
+        <option value="f" {{if eq .me.Seeking "f"}}selected{{end}}>Женщин</option>
+        <option value="m" {{if eq .me.Seeking "m"}}selected{{end}}>Мужчин</option>
+        <option value="any" {{if eq .me.Seeking "any"}}selected{{end}}>Всех</option></select></label>
+    </div>
+    <div class="cols">
+      <label class="field"><span>Город</span><select name="city">{{range .cities}}<option data-lat="{{.Lat}}" data-lng="{{.Lng}}" {{if eq .Name $.me.City}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+      <label class="field"><span>Рост, см</span><input type="number" name="height" min="120" max="230" value="{{if .me.Height}}{{.me.Height}}{{end}}"></label>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" data-geo-btn>{{template "i-pin"}} Обновить геопозицию</button>
+    <small class="muted" data-geo-status></small>
+    <label class="field"><span>Что ищу</span><select name="intent"><option value="">Не указывать</option>
+      {{range $k, $v := intentLabels}}<option value="{{$k}}" {{if eq $k $.me.Intent}}selected{{end}}>{{$v}}</option>{{end}}</select></label>
+    <label class="field"><span>О себе</span><textarea name="bio" rows="4" maxlength="500">{{.me.Bio}}</textarea></label>
+    <fieldset class="field"><legend>Интересы <small class="muted">до 10</small></legend>
+      <div class="chips chips-pick">{{range .interests}}<label><input type="checkbox" name="interests" value="{{.}}" {{if index $.mine .}}checked{{end}}><span>{{.}}</span></label>{{end}}</div>
+    </fieldset>
+    <button class="btn btn-primary" type="submit">Сохранить</button>
+  </form>
+</section>

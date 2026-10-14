@@ -1,0 +1,21 @@
+{{- /* Чаты (templates/messages.html). .new — пары без сообщений, .active — с перепиской; оба []chat.Thread. */ -}}
+<section>
+  <header class="page-head"><h1>Чаты</h1></header>
+  {{if .new}}
+  <h2 class="h3">Новые пары</h2>
+  <div class="strip">{{range .new}}<a href="/chat/{{.MatchId}}" class="strip-item"><img class="ava ava-lg" src="{{.U.Avatar}}" alt=""><span>{{.U.Name}}</span></a>{{end}}</div>
+  {{end}}
+  {{if .active}}
+  <ul class="list">
+    {{range .active}}
+    <li><a class="list-row {{if .Unread}}unread{{end}}" href="/chat/{{.MatchId}}">
+      <span class="ava-wrap"><img class="ava" src="{{.U.Avatar}}" alt="">{{if .U.Online}}<span class="dot-online"></span>{{end}}</span>
+      <span class="grow"><b>{{.U.Name}}</b><br><span class="muted small ellipsis">{{if .LastMine}}Вы: {{end}}{{.Last}}</span></span>
+      <span class="list-end"><span class="muted small">{{ago .LastAt}}</span>{{if .Unread}}<b class="count">{{.Unread}}</b>{{end}}</span>
+    </a></li>
+    {{end}}
+  </ul>
+  {{else if not .new}}
+  <div class="empty"><h2>Здесь будут ваши разговоры</h2><p class="muted">Чат открывается, когда симпатия взаимна.</p><a class="btn btn-primary" href="/encounters">Начать знакомиться</a></div>
+  {{end}}
+</section>

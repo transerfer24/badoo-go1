@@ -1,0 +1,65 @@
+{{.View.SetTitle "Вход"}}
+<section class="auth">
+  <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span>amura</span></a>
+
+  {{if eq .step "email"}}
+  <h1>Вход и регистрация</h1>
+  <p class="muted">Введите почту — если аккаунта ещё нет, мы его создадим.{{if .neuronet}} Аккаунт общий с Neuronet.{{end}}</p>
+  <form method="post" action="/login/email" class="stack">{{.Csrf}}
+    <label class="field"><span>Электронная почта</span>
+      <input type="email" name="email" value="{{index .form "email"}}" required autocomplete="email" maxlength="200" autofocus>
+      {{with index .errors "email"}}<small class="err" role="alert">{{.}}</small>{{end}}</label>
+    <button class="btn btn-primary btn-block" type="submit">Продолжить</button>
+  </form>
+
+  {{else if eq .step "password"}}
+  <h1>С возвращением</h1>
+  <p class="muted">{{.email}}</p>
+  <form method="post" action="/login/password" class="stack">{{.Csrf}}
+    <label class="field"><span>Пароль</span>
+      <input type="password" name="password" required autocomplete="current-password" autofocus>
+      {{with index .errors "password"}}<small class="err" role="alert">{{.}}</small>{{end}}</label>
+    <button class="btn btn-primary btn-block" type="submit">Войти</button>
+  </form>
+  {{if .neuronet}}<form method="post" action="/login/send-code">{{.Csrf}}<button class="btn btn-ghost btn-block" type="submit">Войти по коду на почту</button></form>{{end}}
+
+  {{else if eq .step "code"}}
+  <h1>Код из письма</h1>
+  <p class="muted">Отправили 6 цифр на {{.email}}. Письмо может прийти через минуту, проверьте «Спам».</p>
+  <form method="post" action="/login/code" class="stack">{{.Csrf}}
+    <label class="field"><span>Код</span>
+      <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code" autofocus>
+      {{with index .errors "code"}}<small class="err" role="alert">{{.}}</small>{{end}}</label>
+    <button class="btn btn-primary btn-block" type="submit">Продолжить</button>
+  </form>
+  <form method="post" action="/login/send-code">{{.Csrf}}
+    <button class="btn btn-ghost btn-block" type="submit" data-countdown="{{.resend}}" {{if .resend}}disabled{{end}}>Отправить ещё раз</button>
+  </form>
+
+  {{else if eq .step "register"}}
+  <h1>Почти готово</h1>
+  <p class="muted">Почта {{.email}} подтверждена. Осталось имя и пароль.</p>
+  <form method="post" action="/login/register" class="stack">{{.Csrf}}
+    <label class="field"><span>Имя</span>
+      <input name="name" value="{{index .form "name"}}" required minlength="2" maxlength="40" autocomplete="given-name" autofocus>
+      {{with index .errors "name"}}<small class="err" role="alert">{{.}}</small>{{end}}</label>
+    {{if or .require_invite .neuronet}}
+    <label class="field"><span>Код приглашения {{if not .require_invite}}<small class="muted">необязательно</small>{{end}}</span>
+      <input name="invite" value="{{index .form "invite"}}" {{if .require_invite}}required{{end}} autocomplete="off">
+      {{with index .errors "invite"}}<small class="err" role="alert">{{.}}</small>{{end}}</label>
+    {{end}}
+    <label class="field"><span>Пароль</span>
+      <input type="password" name="pass" required minlength="8" autocomplete="new-password"><small class="muted">Минимум 8 символов</small>
+      {{with index .errors "pass"}}<small class="err" role="alert">{{.}}</small>{{end}}</label>
+    <label class="field"><span>Пароль ещё раз</span>
+      <input type="password" name="pass2" required minlength="8" autocomplete="new-password">
+      {{with index .errors "pass2"}}<small class="err" role="alert">{{.}}</small>{{end}}</label>
+    <label class="check"><input type="checkbox" required> <span>Мне есть 18 лет, я принимаю правила сообщества</span></label>
+    <button class="btn btn-primary btn-block" type="submit">Создать аккаунт</button>
+  </form>
+  {{end}}
+
+  {{with index .errors "message"}}<p class="alert" role="alert">{{.}}</p>{{end}}
+  {{with index .errors "ticket"}}<p class="alert" role="alert">{{.}}</p>{{end}}
+  {{if ne .step "email"}}<form method="post" action="/login/restart">{{.Csrf}}<button class="btn btn-ghost btn-block btn-sm" type="submit">Другая почта</button></form>{{end}}
+</section>

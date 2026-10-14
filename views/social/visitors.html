@@ -1,0 +1,17 @@
+{{- /* Гости (templates/visitors.html). .visitors — []visitor{U *users.User, At time.Time}. */ -}}
+<section>
+  <header class="page-head"><h1>Гости</h1><span class="muted small">за 30 дней</span></header>
+  {{if .visitors}}
+  <ul class="list">
+    {{range .visitors}}
+    <li><a class="list-row" href="/u/{{.U.Id}}">
+      <img class="ava" src="{{.U.Avatar}}" alt="">
+      <span class="grow"><b>{{.U.Name}}, {{.U.Age}}</b> {{if .U.IsVerified}}{{template "badge-verified"}}{{end}}<br><span class="muted small">{{.U.City}} · {{.U.DistLabel}}</span></span>
+      <span class="muted small">{{ago .At}}</span>
+    </a></li>
+    {{end}}
+  </ul>
+  {{else}}
+  <div class="empty"><h2>Гостей пока не было</h2><p class="muted">Здесь появятся те, кто открывал вашу анкету.</p></div>
+  {{end}}
+</section>

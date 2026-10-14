@@ -1,0 +1,87 @@
+# Обновление ядра Go1 — каждый день:
+#   патч (v1.0.x — исправления и безопасность) → тесты + govulncheck → коммит в main → выкладка сама;
+#   минор/мажор (v1.1, v2) → Pull Request: смотришь CHANGELOG ядра и мёржишь — выкладка после мёржа.
+# По понедельникам — пересборка свежим Go, даже если ядро не менялось (исправления стандартной библиотеки).
+# Пока в go.mod стоит replace на локальное ядро — ничего не делает (проект создан без --release).
+name: core-update
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.up.outputs.deploy }}
+    env:
+      GOPRIVATE: whales.team/*
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Доступ к приватному ядру Go1
+        run: git config --global url."https://x-access-token:${{ secrets.GO1_READ_TOKEN }}@github.com/transerfer24/go1".insteadOf "https://github.com/transerfer24/go1"
+
+      - name: Обновление ядра
+        id: up
+        run: |
+          set -euo pipefail
+          git config user.name "go1-bot"
+          git config user.email "go1-bot@users.noreply.github.com"
+          deploy=false
+
+          if grep -q '^replace whales.team/go1' go.mod; then
+            echo "Ядро подключено через replace — автообновление выключено"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          cur=$(go list -m -f '{{.Version}}' whales.team/go1)
+          go get "whales.team/go1@patch"
+          go mod tidy
+          new=$(go list -m -f '{{.Version}}' whales.team/go1)
+          latest=$(go list -m -f '{{.Version}}' whales.team/go1@latest)
+          echo "Ядро: $cur → $new (последняя: $latest)"
+
+          if [ "$cur" != "$new" ]; then
+            go test ./...
+            go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+            git commit -am "chore(core): ядро Go1 $cur → $new"
+            git push origin HEAD:main
+            deploy=true
+          fi
+
+          if [ "${{ github.event_name }}" = schedule ] && [ "$(date -u +%u)" = 1 ]; then
+            deploy=true # еженедельная пересборка свежим Go
+          fi
+
+          if [ "$latest" != "$new" ]; then
+            br="core-${latest}"
+            if ! git ls-remote --exit-code origin "refs/heads/$br" >/dev/null 2>&1; then
+              git checkout -b "$br"
+              go get "whales.team/go1@$latest"
+              go mod tidy
+              git commit -am "chore(core): ядро Go1 $new → $latest"
+              git push origin "$br"
+              gh pr create --base main --head "$br" --title "Ядро Go1 $latest" \
+                --body "Новая минорная/мажорная версия ядра Go1 ($new → $latest). Посмотри CHANGELOG ядра, проверь и смёржь — выкладка пойдёт сама."
+            fi
+          fi
+
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: update
+    if: needs.update.outputs.deploy == 'true'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit

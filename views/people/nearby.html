@@ -1,0 +1,33 @@
+{{- /* Люди рядом (templates/nearby.html). .people — []*users.User с DistKm, .f — discovery.Filter. */ -}}
+<section>
+  <header class="page-head">
+    <h1>Люди рядом</h1>
+    <span class="muted small">{{len .people}} в радиусе {{.f.MaxKm}} км</span>
+  </header>
+  <details class="filters" {{if not .people}}open{{end}}>
+    <summary>{{template "i-filter"}} Фильтры</summary>
+    <form method="get" action="/nearby" class="filters-form">
+      <input type="hidden" name="applied" value="1">
+      <label class="field"><span>Возраст от</span><input type="number" name="age_min" min="18" max="99" value="{{.f.AgeMin}}"></label>
+      <label class="field"><span>до</span><input type="number" name="age_max" min="18" max="99" value="{{.f.AgeMax}}"></label>
+      <label class="field"><span>Радиус, км</span><input type="number" name="km" min="1" max="300" value="{{.f.MaxKm}}"></label>
+      <label class="field"><span>Показывать</span>
+        <select name="seeking">
+          <option value="f" {{if eq .f.Seeking "f"}}selected{{end}}>Женщин</option>
+          <option value="m" {{if eq .f.Seeking "m"}}selected{{end}}>Мужчин</option>
+          <option value="any" {{if eq .f.Seeking "any"}}selected{{end}}>Всех</option>
+        </select></label>
+      <label class="check"><input type="checkbox" name="verified" value="1" {{if .f.VerifiedOnly}}checked{{end}}> <span>Только подтверждённые</span></label>
+      <label class="check"><input type="checkbox" name="online" value="1" {{if .f.OnlineOnly}}checked{{end}}> <span>Сейчас онлайн</span></label>
+      <button class="btn btn-primary" type="submit">Показать</button>
+    </form>
+  </details>
+  {{if .people}}
+  <div class="grid">{{range .people}}{{template "person-tile" .}}{{end}}</div>
+  {{else}}
+  <div class="empty">
+    <h2>Никого не нашли</h2>
+    <p class="muted">По этим фильтрам рядом пока пусто. Попробуйте увеличить радиус или возраст.</p>
+  </div>
+  {{end}}
+</section>
