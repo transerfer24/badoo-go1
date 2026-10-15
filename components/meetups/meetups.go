@@ -66,7 +66,14 @@ type Meetup struct {
 	Price    string    `db:"price"`
 	HostId   int64     `db:"host_id"` // 0 — без организатора (тестовое)
 	Demo     bool      `db:"demo"`
+	// организатор — JOIN users h (sel), чтобы не ходить за ним отдельно
+	HostName  string `db:"host_name"`
+	HostPhoto string `db:"host_photo"`
 }
+
+// sel — колонки события с организатором; FROM {{meetups}} m LEFT JOIN {{users}} h ON h.id = m.host_id.
+const sel = `SELECT m.*, h.name AS host_name, (SELECT p.file FROM {{photos}} p WHERE p.user_id = h.id ORDER BY p.pos, p.id LIMIT 1) AS host_photo
+	FROM {{meetups}} m LEFT JOIN {{users}} h ON h.id = m.host_id`
 
 func scan(r db.Row) *Meetup {
 	m := &Meetup{}
@@ -78,7 +85,7 @@ func scan(r db.Row) *Meetup {
 
 // ById — событие; nil — нет.
 func ById(id int64) *Meetup {
-	r := app.Db.CreateCommand("SELECT * FROM {{meetups}} WHERE id = :id").BindValue(":id", id).MustRow()
+	r := app.Db.CreateCommand(sel+" WHERE m.id = :id").BindValue(":id", id).MustRow()
 	if r == nil {
 		return nil
 	}
@@ -130,7 +137,6 @@ func DTOs(me *users.User, list []*Meetup, now time.Time) []DTO {
 		return out
 	}
 	ids := arr.Map(list, func(m *Meetup) int64 { return m.Id })
-	hostIds := arr.Filter(arr.Map(list, func(m *Meetup) int64 { return m.HostId }), func(id int64) bool { return id != 0 })
 	p := db.P{":me": me.Id, ":ids": ids}
 
 	going := map[int64]int{}
@@ -163,14 +169,12 @@ func DTOs(me *users.User, list []*Meetup, now time.Time) []DTO {
 			faces[mid] = fs
 		}
 	}
-	hosts := users.ByIds(hostIds)
-
 	for _, m := range list {
 		k, _ := KindByKey(m.Kind)
 		d := DTO{Id: m.Id, Title: m.Title, About: m.About, Kind: m.Kind, KindLabel: k.Label, Icon: k.Icon,
 			Place: m.Place, Address: m.Address, City: m.City, Lat: m.Lat, Lng: m.Lng,
 			StartsAt: users.Ts(m.StartsAt), EndsAt: users.Ts(m.EndsAt), Capacity: m.Capacity, Price: m.Price, Going: going[m.Id]}
-		d.Dist = (&users.User{DistKm: users.HaversineKm(me.Lat, me.Lng, m.Lat, m.Lng)}).DistLabel()
+		d.Dist = users.DistLabelKm(users.HaversineKm(me.Lat, me.Lng, m.Lat, m.Lng))
 		if checked, ok := mine[m.Id]; ok {
 			d.IGo, d.CheckedIn = true, checked
 		}
@@ -178,13 +182,11 @@ func DTOs(me *users.User, list []*Meetup, now time.Time) []DTO {
 		d.CanCheck = d.IGo && !d.CheckedIn && now.After(m.StartsAt.Add(-CheckinEarly)) && now.Before(m.EndsAt)
 		if m.HostId != 0 {
 			d.IsHost = m.HostId == me.Id
-			if h := hosts[m.HostId]; h != nil {
-				f := Face{Id: h.Id, Name: h.Name, Color: users.ColorIndex(h.Id)}
-				if len(h.Photos) > 0 {
-					f.Photo = h.Photos[0]
-				}
-				d.Host = &f
+			f := Face{Id: m.HostId, Name: m.HostName, Color: users.ColorIndex(m.HostId)}
+			if m.HostPhoto != "" {
+				f.Photo = photos.Url(m.HostPhoto)
 			}
+			d.Host = &f
 		}
 		d.Faces = faces[m.Id]
 		if d.Faces == nil {
@@ -217,17 +219,17 @@ func firstPhotos(ids []int64) map[int64]string {
 func Nearby(me *users.User, days int, now time.Time) []*Meetup {
 	days = max(1, min(days, 30))
 	km := float64(max(me.MaxKm, 30))
-	q := `SELECT * FROM {{meetups}} WHERE ends_at > :now AND starts_at < :until`
+	q := sel + ` WHERE m.ends_at > :now AND m.starts_at < :until`
 	p := db.P{":now": now, ":until": now.Add(time.Duration(days) * 24 * time.Hour)}
 	if me.Lat != 0 || me.Lng != 0 {
 		// грубая рамка по координатам прямо в базе, точное расстояние — ниже
 		dLat := km / 111.0
 		dLng := km / (111.0 * math.Max(0.2, math.Cos(me.Lat*math.Pi/180)))
-		q += ` AND lat BETWEEN :lat1 AND :lat2 AND lng BETWEEN :lng1 AND :lng2`
+		q += ` AND m.lat BETWEEN :lat1 AND :lat2 AND m.lng BETWEEN :lng1 AND :lng2`
 		p[":lat1"], p[":lat2"], p[":lng1"], p[":lng2"] = me.Lat-dLat, me.Lat+dLat, me.Lng-dLng, me.Lng+dLng
 	}
 	list := []*Meetup{}
-	for _, r := range app.Db.CreateCommand(q+` ORDER BY starts_at LIMIT 300`, p).MustAll() {
+	for _, r := range app.Db.CreateCommand(q+` ORDER BY m.starts_at LIMIT 300`, p).MustAll() {
 		m := scan(r)
 		if me.Lat == 0 || users.HaversineKm(me.Lat, me.Lng, m.Lat, m.Lng) <= km {
 			list = append(list, m)
@@ -236,53 +238,16 @@ func Nearby(me *users.User, days int, now time.Time) []*Meetup {
 	return list
 }
 
-// Attendee — участник события для того, кто сам идёт: анкета + отметка + связь со мной.
-type Attendee struct {
-	U         *users.User
-	CheckedIn bool
-	MatchId   int64
-	MyVote    int
-}
-
-// Attendees — кто идёт (кроме меня и заблокированных), отметившиеся первыми.
-func Attendees(me *users.User, m *Meetup) []Attendee {
-	rows := app.Db.CreateCommand(`SELECT u.*, g.checked_in_at FROM {{meetup_going}} g INNER JOIN {{users}} u ON u.id = g.user_id
-		WHERE g.meetup_id = :mid AND g.user_id <> :me AND u.onboarded = 1`+goingNotBlocked+` ORDER BY g.checked_in_at DESC, g.created_at`,
-		db.P{":mid": m.Id, ":me": me.Id}).MustAll()
-	list := make([]*users.User, 0, len(rows))
-	checked := make([]bool, 0, len(rows))
-	for _, r := range rows {
-		list = append(list, users.Scan(r))
-		checked = append(checked, !r.IsNull("checked_in_at"))
-	}
-	users.FillPhotos(list)
-	// мой голос и мэтч по всем участникам — по одному запросу на всех, а не по два на каждого
-	ids := arr.Map(list, func(u *users.User) int64 { return u.Id })
-	votes, matches := map[int64]int{}, map[int64]int64{}
-	if len(ids) > 0 {
-		p := db.P{":me": me.Id, ":ids": ids}
-		for _, r := range app.Db.CreateCommand(`SELECT target_id, liked FROM {{votes}} WHERE voter_id = :me AND target_id IN (:ids)`, p).MustAll() {
-			votes[r.Int64("target_id")] = r.Int("liked")
-		}
-		for _, r := range app.Db.CreateCommand(`SELECT id, user_a, user_b FROM {{matches}}
-			WHERE (user_a = :me AND user_b IN (:ids)) OR (user_b = :me AND user_a IN (:ids))`, p).MustAll() {
-			other := r.Int64("user_a")
-			if other == me.Id {
-				other = r.Int64("user_b")
-			}
-			matches[other] = r.Int64("id")
-		}
-	}
-	out := make([]Attendee, 0, len(list))
-	for i, u := range list {
-		u.DistKm = users.HaversineKm(me.Lat, me.Lng, u.Lat, u.Lng)
-		a := Attendee{U: u, CheckedIn: checked[i], MatchId: matches[u.Id], MyVote: -1}
-		if v, ok := votes[u.Id]; ok {
-			a.MyVote = v
-		}
-		out = append(out, a)
-	}
-	return out
+// Attendees — кто идёт (кроме меня и заблокированных), отметившиеся первыми. Одним запросом: анкета (users.Cols),
+// фото, расстояние, отметка (checked_in), мой голос (my_vote) и пара (match_id) — как $select/$join в WealthBook.
+func Attendees(me *users.User, m *Meetup) db.Rows {
+	p := users.P(me)
+	p[":mid"] = m.Id
+	return app.Db.CreateCommand(`SELECT `+users.Cols+`, `+users.Photo+`, `+users.Photos+`, `+users.Dist+`, `+users.MyVote+`, `+users.MatchId+`,
+		  g.checked_in_at IS NOT NULL AS checked_in
+		FROM {{meetup_going}} g INNER JOIN {{users}} u ON u.id = g.user_id
+		WHERE g.meetup_id = :mid AND g.user_id <> :me AND u.onboarded = 1`+goingNotBlocked+`
+		ORDER BY g.checked_in_at DESC, g.created_at`, p).MustAll()
 }
 
 // ---------- Создание и участие ----------

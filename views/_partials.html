@@ -16,12 +16,13 @@
 
 {{define "badge-verified"}}<span class="verified" title="Фото подтверждено">{{template "i-check"}}<span class="sr">Фото подтверждено</span></span>{{end}}
 
+{{- /* person-tile — строка выборки анкет (users.Cols + photo + dist_km): {{.name}}, {{age .birthdate}}, {{avatar .photo .id}} */ -}}
 {{define "person-tile"}}
-<a class="tile" href="/u/{{.Id}}">
-  <img src="{{.Avatar}}" alt="{{.Name}}" loading="lazy">
+<a class="tile" href="/u/{{.id}}">
+  <img src="{{avatar .photo .id}}" alt="{{.name}}" loading="lazy">
   <span class="tile-info">
-    <span class="tile-name">{{.Name}}, {{.Age}} {{if .IsVerified}}{{template "badge-verified"}}{{end}}</span>
-    <span class="tile-meta">{{if .Online}}<span class="dot-online" aria-label="онлайн"></span>{{end}}{{.DistLabel}}</span>
+    <span class="tile-name">{{.name}}, {{age .birthdate}} {{if verified .verified}}{{template "badge-verified"}}{{end}}</span>
+    <span class="tile-meta">{{if online .last_seen}}<span class="dot-online" aria-label="онлайн"></span>{{end}}{{dist .dist_km}}</span>
   </span>
 </a>
 {{end}}

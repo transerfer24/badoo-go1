@@ -8,6 +8,7 @@ import (
 	"badoo/components/hub"
 	"badoo/components/users"
 
+	"whales.team/go1/db"
 	"whales.team/go1/helpers/arr"
 	"whales.team/go1/web"
 )
@@ -37,11 +38,7 @@ func (c *ApiSocialController) ActionLikes() error {
 		out["likers"] = toDTOs(likers)
 	} else {
 		// без Premium — только цвета для размытых плиток, без лиц и имён
-		colors := make([]int, 0, len(likers))
-		for _, u := range likers {
-			colors = append(colors, users.ColorIndex(u.Id))
-		}
-		out["lockedColors"] = colors
+		out["lockedColors"] = arr.Map(likers.IntColumn("id"), users.ColorIndex)
 	}
 	return c.Json(out)
 }
@@ -51,8 +48,8 @@ func (c *ApiSocialController) ActionVisitors() error {
 		User UserDTO `json:"user"`
 		At   string  `json:"at"`
 	}
-	return c.Json(web.M{"visitors": arr.Map(discovery.Visitors(users.Current(c.Context)), func(v discovery.Visitor) visit {
-		return visit{toDTO(v.U), users.Ts(v.At)}
+	return c.Json(web.M{"visitors": arr.Map(discovery.Visitors(users.Current(c.Context)), func(r db.Row) visit {
+		return visit{toDTO(r), users.Ts(r.Time("at"))}
 	})})
 }
 
@@ -74,8 +71,21 @@ func (c *ApiSocialController) ActionChats() error {
 	return c.Json(web.M{"chats": arr.Map(chat.Threads(users.Current(c.Context)), toThread)})
 }
 
-func toThread(t chat.Thread) threadDTO {
-	return threadDTO{t.MatchId, toDTO(t.U), t.Last, t.LastMine, users.Ts(t.LastAt), t.Unread}
+func toThread(r db.Row) threadDTO {
+	return threadDTO{r.Int64("match_id"), toDTO(r), r.Str("last"), r.Bool("last_mine"), users.Ts(r.Time("last_at")), r.Int("unread")}
+}
+
+// msgDTO — сообщение для приложения: булевы mine/read (из базы приходят 1/0), время ISO.
+type msgDTO struct {
+	Id   int64  `json:"id"`
+	Mine bool   `json:"mine"`
+	Body string `json:"body"`
+	At   string `json:"at"`
+	Read bool   `json:"read"`
+}
+
+func toMsg(r db.Row) msgDTO {
+	return msgDTO{r.Int64("id"), r.Bool("mine"), r.Str("body"), users.Ts(r.Time("at")), r.Bool("read")}
 }
 
 func (c *ApiSocialController) ActionChat() error {
@@ -85,9 +95,8 @@ func (c *ApiSocialController) ActionChat() error {
 	if peer == nil {
 		return apiFail(c.Context, 404, "not_found", "Чат недоступен.")
 	}
-	peer.DistKm = users.HaversineKm(me.Lat, me.Lng, peer.Lat, peer.Lng)
 	chat.MarkRead(me, mid)
-	return c.Json(web.M{"matchId": mid, "peer": toDTO(peer), "messages": chat.Messages(me, mid, 0), "canSend": chat.CanSend(me)})
+	return c.Json(web.M{"matchId": mid, "peer": toDTO(peer), "messages": arr.Map(chat.Messages(me, mid, 0), toMsg), "canSend": chat.CanSend(me)})
 }
 
 func (c *ApiSocialController) ActionChatMessages() error {
@@ -96,7 +105,7 @@ func (c *ApiSocialController) ActionChatMessages() error {
 	if chat.Peer(me, mid) == nil {
 		return apiFail(c.Context, 404, "not_found", "Чат недоступен.")
 	}
-	return c.Json(chat.Messages(me, mid, c.GetInt64("after")))
+	return c.Json(arr.Map(chat.Messages(me, mid, c.GetInt64("after")), toMsg))
 }
 
 func (c *ApiSocialController) ActionChatSend() error {
@@ -115,11 +124,11 @@ func (c *ApiSocialController) ActionChatSend() error {
 	if !apiBind(c.Context, &in) {
 		return nil
 	}
-	msg, ok := chat.Send(me, peer, mid, in.Body)
+	msg, ok := chat.Send(me, peer.Int64("id"), mid, in.Body)
 	if !ok {
 		return apiFail(c.Context, 400, "body", "Сообщение пустое или слишком длинное.")
 	}
-	return c.Json(msg)
+	return c.Json(toMsg(msg))
 }
 
 func (c *ApiSocialController) ActionChatRead() error {

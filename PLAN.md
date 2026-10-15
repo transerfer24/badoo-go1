@@ -128,6 +128,17 @@
 - Следующие кандидаты, когда понадобится: кеш колоды и `Counts` в Redis (`Config.Redis` — ядро само переключит кеш,
   сессии и лимиты), реплика на чтение.
 
+### Стиль выборок — как в WealthBook (15.10, вечер)
+- Чужие анкеты больше не структуры: каждая выборка — один SQL с JOIN (`users.Cols`, `users.Photo/Photos`, `users.Dist`,
+  `users.LikedMe/MyVote/MatchId`, `users.NotBlocked` — куски как $select/$join), `MustAll()` → `db.Rows` сразу во вьюху
+  или в `toDTO(row)` для приложения. Расстояние, «лайкнул меня», мой голос, id пары — колонки запроса; ранжирование
+  колоды — в ORDER BY (`users.Rand()`), фильтр «Рядом» — `discovery.where` как $where[].
+- Шаблоны читают строки: `{{.name}}`, `{{age .birthdate}}`, `{{avatar .photo .id}}`, `{{dist .dist_km}}`,
+  `{{online .last_seen}}`, `{{verified .verified}}` — функции `users.Funcs` (Functions:: из WealthBook).
+- `users.User` остался только для текущего пользователя (`$user_info`). Убраны `ByIds/FillPhotos/Scan/WithDistance`,
+  `Card/ToCard`, `chat.Thread/Msg`, `meetups.Attendee`, свой `inList`. Циклов-склеек в компонентах нет; единственный
+  `arr.Map` — `toDTO` перед JSON для телефона (array_map перед asJson).
+
 ### 7. Потом
 - Админка: `make:crud users`, `make:crud reports` — модерация селфи и жалоб (сейчас их нет вообще).
 - `audit`, `flags` модули — по желанию.

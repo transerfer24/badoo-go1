@@ -56,8 +56,12 @@ func (c *ApiMeetupsController) ActionView() error {
 	}
 	people := []attendee{}
 	if d.IGo {
-		for _, a := range meetups.Attendees(me, m) {
-			people = append(people, attendee{toDTO(a.U), a.CheckedIn, a.MatchId, a.MyVote})
+		for _, r := range meetups.Attendees(me, m) {
+			myVote := -1
+			if !r.IsNull("my_vote") {
+				myVote = r.Int("my_vote")
+			}
+			people = append(people, attendee{toDTO(r), r.Bool("checked_in"), r.Int64("match_id"), myVote})
 		}
 	}
 	return c.Json(web.M{"meetup": d, "people": people})

@@ -83,14 +83,19 @@ func (c *ApiPeopleController) ActionNearby() error {
 func (c *ApiPeopleController) ActionUser() error {
 	me := users.Current(c.Context)
 	id := c.GetInt64("id")
-	u := users.ById(id)
-	if u == nil || !u.Onboarded || discovery.BlockedEither(me.Id, id) {
+	u := discovery.Profile(me, id)
+	if u == nil {
 		return apiFail(c.Context, 404, "not_found", "Анкета недоступна.")
 	}
-	u.DistKm = users.HaversineKm(me.Lat, me.Lng, u.Lat, u.Lng)
-	rel := discovery.Relate(me, id)
-	return c.Json(web.M{"user": toDTO(u), "matchId": rel.MatchId, "myVote": rel.MyVote, "likedMe": rel.LikedMe, "isMe": u.Id == me.Id,
-		"meetups": meetups.OfUser(me.Id, u.Id)})
+	myVote := -1
+	if !u.IsNull("my_vote") {
+		myVote = u.Int("my_vote")
+	}
+	if id != me.Id {
+		discovery.Visit(me, id)
+	}
+	return c.Json(web.M{"user": toDTO(u), "matchId": u.Int64("match_id"), "myVote": myVote, "likedMe": u.Bool("liked_me") && me.IsPremium(),
+		"isMe": id == me.Id, "meetups": meetups.OfUser(me.Id, id)})
 }
 
 func (c *ApiPeopleController) ActionBlock() error {

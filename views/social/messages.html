@@ -1,21 +1,24 @@
-{{- /* Чаты (templates/messages.html). .new — пары без сообщений, .active — с перепиской; оба []chat.Thread. */ -}}
+{{- /* Чаты (templates/messages.html). .threads — строки chat.Threads: match_id, last, last_mine, last_at, unread + анкета
+   собеседника (name, photo, last_seen…). Пары без сообщений (last пустой) — «новые», остальные — список. */ -}}
+{{$new := 0}}{{range .threads}}{{if not .last}}{{$new = 1}}{{end}}{{end}}
+{{$active := 0}}{{range .threads}}{{if .last}}{{$active = 1}}{{end}}{{end}}
 <section>
   <header class="page-head"><h1>Чаты</h1></header>
-  {{if .new}}
+  {{if $new}}
   <h2 class="h3">Новые пары</h2>
-  <div class="strip">{{range .new}}<a href="/chat/{{.MatchId}}" class="strip-item"><img class="ava ava-lg" src="{{.U.Avatar}}" alt=""><span>{{.U.Name}}</span></a>{{end}}</div>
+  <div class="strip">{{range .threads}}{{if not .last}}<a href="/chat/{{.match_id}}" class="strip-item"><img class="ava ava-lg" src="{{avatar .photo .id}}" alt=""><span>{{.name}}</span></a>{{end}}{{end}}</div>
   {{end}}
-  {{if .active}}
+  {{if $active}}
   <ul class="list">
-    {{range .active}}
-    <li><a class="list-row {{if .Unread}}unread{{end}}" href="/chat/{{.MatchId}}">
-      <span class="ava-wrap"><img class="ava" src="{{.U.Avatar}}" alt="">{{if .U.Online}}<span class="dot-online"></span>{{end}}</span>
-      <span class="grow"><b>{{.U.Name}}</b><br><span class="muted small ellipsis">{{if .LastMine}}Вы: {{end}}{{.Last}}</span></span>
-      <span class="list-end"><span class="muted small">{{ago .LastAt}}</span>{{if .Unread}}<b class="count">{{.Unread}}</b>{{end}}</span>
+    {{range .threads}}{{if .last}}
+    <li><a class="list-row {{if .unread}}unread{{end}}" href="/chat/{{.match_id}}">
+      <span class="ava-wrap"><img class="ava" src="{{avatar .photo .id}}" alt="">{{if online .last_seen}}<span class="dot-online"></span>{{end}}</span>
+      <span class="grow"><b>{{.name}}</b><br><span class="muted small ellipsis">{{if .last_mine}}Вы: {{end}}{{.last}}</span></span>
+      <span class="list-end"><span class="muted small">{{ago .last_at}}</span>{{if .unread}}<b class="count">{{.unread}}</b>{{end}}</span>
     </a></li>
-    {{end}}
+    {{end}}{{end}}
   </ul>
-  {{else if not .new}}
+  {{else if not $new}}
   <div class="empty"><h2>Здесь будут ваши разговоры</h2><p class="muted">Чат открывается, когда симпатия взаимна.</p><a class="btn btn-primary" href="/encounters">Начать знакомиться</a></div>
   {{end}}
 </section>

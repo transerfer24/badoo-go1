@@ -24,13 +24,7 @@ func (c *EncountersController) ActionIndex() error {
 
 func (c *EncountersController) ActionCards() error {
 	me := users.Current(c.Context)
-	list := discovery.Encounters(me)
-	cards := make([]discovery.Card, 0, len(list))
-	for _, u := range list {
-		cards = append(cards, discovery.ToCard(u))
-	}
-
-	return c.Json(web.M{"cards": cards, "premium": me.IsPremium()})
+	return c.Json(web.M{"cards": toDTOs(discovery.Encounters(me)), "premium": me.IsPremium()})
 }
 
 func (c *EncountersController) ActionVote() error {
@@ -52,5 +46,5 @@ func (c *EncountersController) ActionUndo() error {
 	if u == nil {
 		return c.Json(web.M{"card": nil})
 	}
-	return c.Json(web.M{"card": discovery.ToCard(u)})
+	return c.Json(web.M{"card": toDTO(u)})
 }

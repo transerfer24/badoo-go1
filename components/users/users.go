@@ -20,6 +20,9 @@ import (
 	"whales.team/go1/web"
 )
 
+// User — текущий пользователь ($user_info в WealthBook): identity для экшенов и лейаута (me.Id, me.Lat, me.IsPremium()).
+// Чужие анкеты в списках и на экранах — не структуры, а строки выборок (sql.go: users.Cols + photo + dist_km),
+// как queryAll() в WealthBook; поля для них считают функции шаблонов users.Funcs.
 type User struct {
 	Id           int64     `db:"id"`
 	Email        string    `db:"email"`
@@ -44,8 +47,7 @@ type User struct {
 	Onboarded    bool      `db:"onboarded"`
 	LastSeen     time.Time `db:"last_seen"`
 
-	Photos []string `db:"-"` // URL-ы
-	DistKm float64  `db:"-"` // относительно зрителя
+	Photos []string `db:"-"` // URL-ы (главное — первым)
 }
 
 // ById — анкета с фото. nil — нет такой.
@@ -93,21 +95,6 @@ func (u *User) Avatar() string {
 	return fmt.Sprintf("/avatar/%d.svg", u.Id)
 }
 
-func (u *User) Gallery() []string {
-	if len(u.Photos) > 0 {
-		return u.Photos
-	}
-	return []string{u.Avatar()}
-}
-
-func (u *User) Age() int {
-	b, err := time.Parse("2006-01-02", u.Birthdate)
-	if err != nil {
-		return 0
-	}
-	return AgeAt(b, time.Now())
-}
-
 func AgeAt(b, now time.Time) int {
 	age := now.Year() - b.Year()
 	if now.Month() < b.Month() || (now.Month() == b.Month() && now.Day() < b.Day()) {
@@ -116,11 +103,8 @@ func AgeAt(b, now time.Time) int {
 	return age
 }
 
-func (u *User) IsPremium() bool     { return !u.PremiumUntil.IsZero() && u.PremiumUntil.After(time.Now()) }
-func (u *User) IsVerified() bool    { return u.Verified == 2 }
-func (u *User) Online() bool        { return time.Since(u.LastSeen) < 5*time.Minute }
-func (u *User) GenderLabel() string { return GenderLabels[u.Gender] }
-func (u *User) IntentLabel() string { return IntentLabels[u.Intent] }
+func (u *User) IsPremium() bool  { return !u.PremiumUntil.IsZero() && u.PremiumUntil.After(time.Now()) }
+func (u *User) IsVerified() bool { return u.Verified == 2 }
 
 func (u *User) PremiumDate() string {
 	if u.PremiumUntil.IsZero() {
@@ -137,17 +121,6 @@ func (u *User) InterestList() []string {
 		}
 	}
 	return out
-}
-
-func (u *User) DistLabel() string {
-	switch {
-	case u.DistKm < 1:
-		return "меньше 1 км"
-	case u.DistKm < 10:
-		return fmt.Sprintf("%.1f км", u.DistKm)
-	default:
-		return fmt.Sprintf("%.0f км", u.DistKm)
-	}
 }
 
 var IntentLabels = map[string]string{
@@ -177,49 +150,6 @@ func Ts(t time.Time) string {
 		return ""
 	}
 	return t.UTC().Format(TsLayout)
-}
-
-// ByIds — анкеты с фото по списку id (два запроса на любой размер списка; было usersByIDs).
-func ByIds(ids []int64) map[int64]*User {
-	out := make(map[int64]*User, len(ids))
-	if len(ids) == 0 {
-		return out
-	}
-	rows := app.Db.Query().From("{{users}}").Where(db.In("id", ids)).MustAll()
-	list := make([]*User, 0, len(rows))
-	for _, r := range rows {
-		u := &User{}
-		if err := r.Scan(u); err != nil {
-			panic(db.MustError{Err: err})
-		}
-		out[u.Id] = u
-		list = append(list, u)
-	}
-	FillPhotos(list)
-	return out
-}
-
-// FillPhotos — фото всем анкетам списка одним запросом (было photoMap/fillPhotos).
-func FillPhotos(list []*User) {
-	if len(list) == 0 {
-		return
-	}
-	byId := arr.IndexBy(list, func(u *User) int64 { u.Photos = nil; return u.Id })
-	rows := app.Db.Query().Select("user_id", "file").From("{{photos}}").Where(db.In("user_id", arr.Keys(byId))).OrderBy("user_id", "pos", "id").MustAll()
-	for _, r := range rows {
-		if u := byId[r.Int64("user_id")]; u != nil {
-			u.Photos = append(u.Photos, photos.Url(r.Str("file")))
-		}
-	}
-}
-
-// Scan — анкета из строки запроса (SELECT u.* …).
-func Scan(r db.Row) *User {
-	u := &User{}
-	if err := r.Scan(u); err != nil {
-		panic(db.MustError{Err: err})
-	}
-	return u
 }
 
 // Touch — last_seen не чаще раза в минуту (было: sync.Map в auth.go; здесь — кеш приложения, он один на процесс).

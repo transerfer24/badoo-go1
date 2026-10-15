@@ -52,16 +52,15 @@ func (c *PeopleController) ActionNearby() error {
 func (c *PeopleController) ActionProfile() error {
 	me := users.Current(c.Context)
 	id := c.GetInt64("id")
-	u := users.ById(id)
-	if u == nil || !u.Onboarded || discovery.BlockedEither(me.Id, id) {
+	u := discovery.Profile(me, id) // анкета + фото + расстояние + liked_me/my_vote/match_id одним запросом
+	if u == nil {
 		return c.NotFound()
 	}
-	u.DistKm = users.HaversineKm(me.Lat, me.Lng, u.Lat, u.Lng)
-
-	rel := discovery.Relate(me, id)
-	res := web.M{"u": u, "match_id": rel.MatchId, "my_vote": rel.MyVote, "liked_me": rel.LikedMe, "reasons": discovery.ReportReasons, "is_me": u.Id == me.Id}
-	c.View.SetTitle(u.Name)
-	return c.Render("profile", res)
+	if id != me.Id {
+		discovery.Visit(me, id)
+	}
+	c.View.SetTitle(u.Str("name"))
+	return c.Render("profile", web.M{"u": u, "liked_me": u.Bool("liked_me") && me.IsPremium(), "reasons": discovery.ReportReasons, "is_me": id == me.Id})
 }
 
 func (c *PeopleController) ActionVote() error {

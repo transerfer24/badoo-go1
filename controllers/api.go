@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"math"
+
 	"strings"
 	"time"
+	"whales.team/go1/db"
 
 	"badoo/components/photos"
 	"badoo/components/users"
@@ -114,24 +116,30 @@ type UserDTO struct {
 	Color       int      `json:"color"` // индекс палитры для аватара без фото
 }
 
-func toDTO(u *users.User) UserDTO {
-	ph := u.Photos
-	if ph == nil {
-		ph = []string{}
-	}
-	ints := u.InterestList()
-	if ints == nil {
-		ints = []string{}
-	}
-	ls := users.Ts(u.LastSeen)
-	if u.Invisible {
+// toDTO — строка выборки (users.Cols + photo/photos + dist_km) → JSON приложения. Это array_map перед asJson:
+// телефон ждёт фиксированные ключи и вычисленные поля (возраст, подписи), которых в базе нет.
+func toDTO(r db.Row) UserDTO {
+	ls := users.Ts(r.Time("last_seen"))
+	if r.Bool("invisible") {
 		ls = ""
 	}
-	return UserDTO{u.Id, u.Name, u.Age(), u.Gender, u.City, math.Round(u.DistKm*10) / 10, u.DistLabel(), u.IsVerified(), u.Online(),
-		ls, ph, u.Bio, u.Intent, u.IntentLabel(), ints, u.Height, users.ColorIndex(u.Id)}
+	ph := []string{}
+	for _, f := range users.SplitList(r.Str("photos")) {
+		ph = append(ph, photos.Url(f))
+	}
+	if len(ph) == 0 && r.Str("photo") != "" { // в списках без колонки photos — хотя бы главное
+		ph = append(ph, photos.Url(r.Str("photo")))
+	}
+	return UserDTO{
+		Id: r.Int64("id"), Name: r.Str("name"), Age: users.AgeOf(r.Str("birthdate")), Gender: r.Str("gender"), City: r.Str("city"),
+		DistKm: math.Round(r.Float("dist_km")*10) / 10, Dist: users.DistLabelKm(r.Float("dist_km")),
+		Verified: r.Int("verified") == 2, Online: users.OnlineAt(r["last_seen"]), LastSeen: ls, Photos: ph,
+		Bio: r.Str("bio"), Intent: r.Str("intent"), IntentLabel: users.IntentLabels[r.Str("intent")],
+		Interests: users.SplitList(r.Str("interests")), Height: r.Int("height"), Color: users.ColorIndex(r.Int64("id")),
+	}
 }
 
-func toDTOs(list []*users.User) []UserDTO { return arr.Map(list, toDTO) }
+func toDTOs(rows db.Rows) []UserDTO { return arr.Map(rows, toDTO) }
 
 type MeDTO struct {
 	UserDTO
@@ -156,7 +164,7 @@ func meDTO(uid int64) (MeDTO, bool) {
 	if u == nil {
 		return MeDTO{}, false
 	}
-	d := MeDTO{UserDTO: toDTO(u), Email: u.Email, Birthdate: u.Birthdate, Seeking: u.Seeking, Onboarded: u.Onboarded,
+	d := MeDTO{UserDTO: toDTO(users.RowOf(u, uid)), Email: u.Email, Birthdate: u.Birthdate, Seeking: u.Seeking, Onboarded: u.Onboarded,
 		Verification: u.Verified, Premium: u.IsPremium(), PremiumUntil: users.Ts(u.PremiumUntil), Invisible: u.Invisible,
 		AgeMin: u.AgeMin, AgeMax: u.AgeMax, MaxKm: u.MaxKm, VerifiedOnly: u.VerifiedOnly, PhotoList: []PhotoDTO{}}
 	d.LastSeen = users.Ts(u.LastSeen) // себе last_seen виден и в режиме невидимки

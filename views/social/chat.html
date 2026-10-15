@@ -1,13 +1,13 @@
-{{- /* Чат (templates/chat.html). .match_id, .peer — *users.User, .messages — []chat.Msg, .can_send.
+{{- /* Чат (templates/chat.html). .match_id, .peer — строка chat.Peer, .messages — строки chat.Messages, .can_send.
    История уходит в JSON-скрипт: в контексте <script> html/template сам сериализует значение в JSON
    (в оригинале для этого была функция json). Живые сообщения — SSE /api/events в app.js. */ -}}
 <section class="chat" data-chat="{{.match_id}}">
   <header class="chat-head">
     <a class="back" href="/messages" aria-label="К чатам">{{template "i-back"}}</a>
-    <a class="chat-peer" href="/u/{{.peer.Id}}">
-      <img class="ava" src="{{.peer.Avatar}}" alt="">
-      <span><b>{{.peer.Name}}, {{.peer.Age}}</b> {{if .peer.IsVerified}}{{template "badge-verified"}}{{end}}<br>
-      <span class="muted small">{{if .peer.Online}}онлайн{{else}}был(а) {{ago .peer.LastSeen}}{{end}}</span></span>
+    <a class="chat-peer" href="/u/{{.peer.id}}">
+      <img class="ava" src="{{avatar .peer.photo .peer.id}}" alt="">
+      <span><b>{{.peer.name}}, {{age .peer.birthdate}}</b> {{if verified .peer.verified}}{{template "badge-verified"}}{{end}}<br>
+      <span class="muted small">{{if online .peer.last_seen}}онлайн{{else}}был(а) {{ago .peer.last_seen}}{{end}}</span></span>
     </a>
   </header>
   <div class="chat-log" data-log>

@@ -184,8 +184,11 @@ var App = go1.Config{
 		// один раз на запрос: {{$me := me .Ctx}} (docs/style.md ядра, «Перенос с Yii», п. 2).
 		a.Server.Views.AddFunc("me", users.Current)
 		a.Server.Views.AddFunc("counts", users.Counts)
-		a.Server.Views.AddFunc("gender", func(g string) string { return users.GenderLabels[g] })
 		a.Server.Views.AddFunc("intentLabels", func() map[string]string { return users.IntentLabels })
+		// Функции над строками выборок — Functions:: из WealthBook: {{age .birthdate}}, {{avatar .photo .id}}, {{dist .dist_km}}…
+		for name, fn := range users.Funcs {
+			a.Server.Views.AddFunc(name, fn)
+		}
 		return nil
 	},
 }

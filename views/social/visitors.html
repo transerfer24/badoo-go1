@@ -1,13 +1,13 @@
-{{- /* Гости (templates/visitors.html). .visitors — []visitor{U *users.User, At time.Time}. */ -}}
+{{- /* Гости (templates/visitors.html). .visitors — строки discovery.Visitors: анкета + photo + dist_km + at. */ -}}
 <section>
   <header class="page-head"><h1>Гости</h1><span class="muted small">за 30 дней</span></header>
   {{if .visitors}}
   <ul class="list">
     {{range .visitors}}
-    <li><a class="list-row" href="/u/{{.U.Id}}">
-      <img class="ava" src="{{.U.Avatar}}" alt="">
-      <span class="grow"><b>{{.U.Name}}, {{.U.Age}}</b> {{if .U.IsVerified}}{{template "badge-verified"}}{{end}}<br><span class="muted small">{{.U.City}} · {{.U.DistLabel}}</span></span>
-      <span class="muted small">{{ago .At}}</span>
+    <li><a class="list-row" href="/u/{{.id}}">
+      <img class="ava" src="{{avatar .photo .id}}" alt="">
+      <span class="grow"><b>{{.name}}, {{age .birthdate}}</b> {{if verified .verified}}{{template "badge-verified"}}{{end}}<br><span class="muted small">{{.city}} · {{dist .dist_km}}</span></span>
+      <span class="muted small">{{ago .at}}</span>
     </a></li>
     {{end}}
   </ul>

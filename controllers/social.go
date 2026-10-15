@@ -10,6 +10,7 @@ import (
 	"badoo/components/hub"
 	"badoo/components/users"
 
+	"whales.team/go1/helpers/arr"
 	"whales.team/go1/web"
 )
 
@@ -46,17 +47,8 @@ func (c *SocialController) ActionVisitors() error {
 }
 
 func (c *SocialController) ActionMessages() error {
-	me := users.Current(c.Context)
-	fresh, active := []chat.Thread{}, []chat.Thread{}
-	for _, t := range chat.Threads(me) {
-		if t.Last == "" {
-			fresh = append(fresh, t)
-		} else {
-			active = append(active, t)
-		}
-	}
 	c.View.Params = web.M{"active": "messages"}
-	return c.Render("messages", web.M{"new": fresh, "active": active})
+	return c.Render("messages", web.M{"threads": chat.Threads(users.Current(c.Context))}) // новые пары и переписка — в шаблоне по .last
 }
 
 func (c *SocialController) ActionChat() error {
@@ -66,12 +58,11 @@ func (c *SocialController) ActionChat() error {
 	if peer == nil {
 		return c.NotFound()
 	}
-	peer.DistKm = users.HaversineKm(me.Lat, me.Lng, peer.Lat, peer.Lng)
 	chat.MarkRead(me, mid)
-	c.View.SetTitle(peer.Name)
+	c.View.SetTitle(peer.Str("name"))
 	c.View.Params = web.M{"active": "messages"}
 
-	return c.Render("chat", web.M{"match_id": mid, "peer": peer, "messages": chat.Messages(me, mid, 0), "can_send": chat.CanSend(me)})
+	return c.Render("chat", web.M{"match_id": mid, "peer": peer, "messages": arr.Map(chat.Messages(me, mid, 0), toMsg), "can_send": chat.CanSend(me)})
 }
 
 func (c *SocialController) ActionChatMessages() error {
@@ -80,7 +71,7 @@ func (c *SocialController) ActionChatMessages() error {
 	if chat.Peer(me, mid) == nil {
 		return c.NotFound()
 	}
-	return c.Json(chat.Messages(me, mid, c.GetInt64("after")))
+	return c.Json(arr.Map(chat.Messages(me, mid, c.GetInt64("after")), toMsg))
 }
 
 func (c *SocialController) ActionChatSend() error {
@@ -94,11 +85,11 @@ func (c *SocialController) ActionChatSend() error {
 		c.SetStatus(403)
 		return c.Json(web.M{"error": "verify"})
 	}
-	m, ok := chat.Send(me, peer, mid, c.Post("body"))
+	m, ok := chat.Send(me, peer.Int64("id"), mid, c.Post("body"))
 	if !ok {
 		return web.ErrBadRequest("empty or too long")
 	}
-	return c.Json(m)
+	return c.Json(toMsg(m))
 }
 
 func (c *SocialController) ActionChatRead() error {
