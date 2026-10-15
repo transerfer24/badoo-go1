@@ -2,7 +2,7 @@ module badoo
 
 go 1.26.0
 
-require whales.team/go1 v1.0.3
+require whales.team/go1 v1.1.0
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect

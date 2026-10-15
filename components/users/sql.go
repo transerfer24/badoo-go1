@@ -32,7 +32,8 @@ const Cols = `u.id, u.name, u.birthdate, u.gender, u.seeking, u.city, u.lat, u.l
 // Photo — главное фото (ключ в хранилище; в шаблоне {{avatar .photo .id}}), Photos — все через запятую ({{gallery .photos .id}}).
 const (
 	Photo  = `(SELECT p.file FROM {{photos}} p WHERE p.user_id = u.id ORDER BY p.pos, p.id LIMIT 1) AS photo`
-	Photos = `(SELECT GROUP_CONCAT(t.file) FROM (SELECT p.file FROM {{photos}} p WHERE p.user_id = u.id ORDER BY p.pos, p.id) t) AS photos`
+	// ORDER BY внутри GROUP_CONCAT, а не вложенный подзапрос: MySQL до 8.0.14 не пускает u.id внутрь derived table
+	Photos = `(SELECT GROUP_CONCAT(p.file ORDER BY p.pos, p.id) FROM {{photos}} p WHERE p.user_id = u.id) AS photos`
 )
 
 // Dist — расстояние до :lat/:lng в километрах (гаверсинус; ACOS/RADIANS есть и в MySQL, и в SQLite ядра).
