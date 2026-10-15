@@ -2,6 +2,7 @@
 *.local.go
 config/local.go
 runtime/
+/data/          # копии боевой базы для импорта — не в git
 *.db
 *.sqlite
 /build/

@@ -81,23 +81,52 @@
   `match`) → чат (`message` по SSE, прочитано) → undo без Premium = 402 → жалоба с блокировкой: анкета и чат пропадают.
 - **Приёмка**: лайк → мэтч → чат между двумя анкетами, уведомление в реальном времени.
 
-### 4. API v1 для приложения — 2 дня
-- `api/v1/*` → `ApiAuthController`, `ApiMeController`, `ApiDiscoveryController`, `ApiChatController`, `ApiPremiumController`
-  с теми же путями и **теми же JSON-ответами** (`api_v1.go`, `authapi.go`) — приложение не меняется.
-- Bearer-токены: `sessions` таблица, `components/auth.Finder` (есть).
-- CORS как `corsV1`. Long-poll `/api/v1/events?since=N`.
-- `api_v1_test.go`, `authflow_test.go` — перенести как есть (они HTTP-уровня): лучший контроль совместимости.
-- **Приёмка**: мобильное приложение с `PROD_URL=https://badoo.whales.team` проходит все экраны.
+### 4. API v1 для приложения — ГОТОВО (14.10)
+- `controllers/api*.go`: `ApiController` (база: Bearer через `auth.Finder.FindIdentityByAccessToken`, 401 `unauthorized` /
+  403 `onboarding`, лимит) и `ApiAuthController` (`/api/v1/auth/*` — шаги Neuronet, logout; `signup`/`login` → 410),
+  `ApiMeController` (анкета, фото, настройки, верификация, push-токены), `ApiPeopleController` (encounters, votes, undo,
+  nearby, users/<id>*), `ApiSocialController` (likes, visitors, counts, chats*, events long-poll), `ApiPremiumController`,
+  `ApiMetaController`. Пути и JSON-ответы — **те же**, что в api_v1.go/authapi.go, ошибки `{"error", "message"}` (apiFail).
+- Общее с вебом вынесено в компоненты: `users/account.go` (настройки, Premium, верификация, удаление, палитра),
+  `photos` (Mine/Add/Remove/SetMain), `discovery` (Encounters/Nearby/Relate/Likers/Matches/Visitors); веб-контроллеры
+  переведены на них — логика одна, два транспорта.
+- CORS только на `/api/v1/` и `/uploads/` (`apiCors` в config/app.go, Origin `*`, без cookie).
+- `api_v1_test.go` — приложение в процессе на SQLite + поддельный Neuronet: meta → вход (новый/существующий, ошибки) →
+  онбординг → фото → настройки → колода → визит/лайк/мэтч → события long-poll → чат/прочитано/счётчики → Premium →
+  верификация → жалоба+блок → logout → удаление. `make test` гоняет его.
+- Отличие от оригинала: `meetups` в ответе `users/<id>` пока `[]` (этап 5); `PUT /me` без `height` не сбрасывает рост.
+- **Приёмка**: мобильное приложение с `PROD_URL=https://badoo.whales.team` проходит все экраны — после `make deploy`
+  и переключения `src/lib/config.ts` (этап 6).
 
-### 5. Встречи и push — 1–2 дня
-- `MeetupController` + `ApiMeetupController` (meetups.go, 640 строк, самый большой файл): kinds, create/join/checkin, demo-встречи в dev — cron-задача.
-- Push: `push.go` → задача очереди `push.send` + воркер; регистрация токенов `/api/v1/me/push`.
-- **Приёмка**: сообщение приходит push-ем на телефон; встречи видны и в вебе, и в приложении.
+### 5. Встречи и push — ГОТОВО (15.10)
+- `components/meetups` (перенос meetups.go): `Nearby`, `DTOs` (4 запроса на любой список; лица — до 6 на событие
+  режутся в Go вместо ROW_NUMBER, которого нет в MySQL 5.7), `Attendees`, `Create/Delete/Join/Leave/Checkin`, `OfUser`
+  (общие события в анкете — `meetups` в `users/<id>` теперь настоящий), `EnsureDemo` (тестовые события в dev).
+  `ApiMeetupsController` — `/api/v1/meetups*`, те же ответы. Даты — DATETIME, «не отметился» — NULL.
+- `components/push` (перенос push.go): `hub.Offline = push.Notify` → задача `push.send` в очереди ядра → воркер
+  `./app queue/work` шлёт пачками в Expo, `DeviceNotRegistered` удаляет токен; повтор при 5xx/429 — backoff очереди.
+  Антиспам лайков/мэтчей (20 с) — `app.Cache.Add`. На хостинге воркер и cron держит keepalive.sh.
+- `commands/cron.go`: `meetups.demo` раз в 6 часов (было demoMeetupLoop) и команда `./app meetups/demo`.
+- `api_meetups_test.go`: создание → список рядом → «Пойду» (лимит мест) → участники → «Я здесь» → анкета с общим
+  событием → отмена; лайк без открытой ленты → пуш в подменный Expo через очередь, мёртвый токен удалён.
+- **Приёмка**: сообщение приходит push-ем на телефон; встречи видны в приложении — после `make deploy`.
 
-### 6. Данные и переключение — 1 день
-- Перенос данных с hermes1: `sqlite3 amura.db .dump` → скрипт `commands/import.go` (даты ISO → DATETIME, `''` → NULL в read_at/premium_until). Фото уже в S3 — ничего не копировать.
-- Заморозка старого бэкенда (режим только чтение) → импорт → дым → `PROD_URL` в `mobile/src/lib/config.ts` → сборка приложения.
-- hermes1 остаётся на 2–4 недели (старые сборки приложения), потом выключить.
+### 6. Данные и переключение — импорт ГОТОВ (15.10), переключение после проверки
+- `make fetch-db` → `data/amura.db` (снимок SQLite с hermes1 через backup API), `./app import data/amura.db [--wipe]
+  [--photos=amur/prod]` (commands/import.go): даты ISO → DATETIME, `''` → NULL в read_at/premium_until/checked_in_at,
+  имена фото → ключи `<старая папка>/photos/<имя>` в том же бакете (файлы не копируются), auth_key генерируется,
+  sessions переносятся (приложение остаётся залогиненным), id сохраняются. Повторный прогон — только с `--wipe`.
+- Проверено на снимке от 15.10 (101 анкета, 229 фото, 19 событий): вход старым Bearer-токеном, колода, чаты, встречи.
+- `make import-prod` — залить снимок на хостинг и выполнить импорт там (с его .env → MySQL).
+- Дальше: заморозка старого бэкенда → `make fetch-db && make import-prod` → дым с телефона → `PROD_URL` в
+  `mobile/src/lib/config.ts` → сборка приложения. hermes1 остаётся на 2–4 недели (старые сборки), потом выключить.
+
+### Под нагрузку (15.10)
+- Экран чатов и счётчик непрочитанных — без подзапросов к messages: `matches.last_msg_id/last_at/unread_a/unread_b`
+  (миграция m261015_120000, обновляются в `chat.Send`/`MarkRead`, пересчёт `chat.Rebuild` после импорта). Один запрос
+  по индексу (user_a|user_b, last_at) + JOIN по PK. `meetups.Attendees` — голоса и мэтчи одним IN вместо N+1.
+- Следующие кандидаты, когда понадобится: кеш колоды и `Counts` в Redis (`Config.Redis` — ядро само переключит кеш,
+  сессии и лимиты), реплика на чтение.
 
 ### 7. Потом
 - Админка: `make:crud users`, `make:crud reports` — модерация селфи и жалоб (сейчас их нет вообще).

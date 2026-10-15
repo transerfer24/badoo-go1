@@ -15,6 +15,7 @@ import (
 
 	"whales.team/go1/app"
 	"whales.team/go1/db"
+	"whales.team/go1/helpers/arr"
 )
 
 type Filter struct {
@@ -97,20 +98,12 @@ func Compatible(me, other *users.User) bool {
 
 // Rank — ближе, активнее и тех, кто уже лайкнул, — выше; немного случайности, чтобы лента не была одинаковой.
 func Rank(me *users.User, list []*users.User, maxKm int) {
-	likedMe := map[int64]bool{}
-	for _, v := range app.Db.CreateCommand("SELECT voter_id FROM {{votes}} WHERE target_id = :me AND liked = 1").BindValue(":me", me.Id).MustColumn() {
-		likedMe[toInt64(v)] = true
-	}
+	likedMe := arr.Set(app.Db.CreateCommand("SELECT voter_id FROM {{votes}} WHERE target_id = :me AND liked = 1").BindValue(":me", me.Id).MustInts())
 	// у кого есть фото — одним запросом по индексу photos_user (сами фото не тянем)
 	withPhoto := map[int64]bool{}
 	if len(list) > 0 {
-		ids := make([]int64, len(list))
-		for i, u := range list {
-			ids[i] = u.Id
-		}
-		for _, v := range app.Db.Query().Select("user_id").Distinct().From("{{photos}}").Where(db.In("user_id", ids)).MustColumn() {
-			withPhoto[toInt64(v)] = true
-		}
+		ids := arr.Map(list, func(u *users.User) int64 { return u.Id })
+		withPhoto = arr.Set(app.Db.Query().Select("user_id").Distinct().From("{{photos}}").Where(db.In("user_id", ids)).MustInts())
 	}
 	score := map[int64]float64{}
 	for _, u := range list {
@@ -177,7 +170,8 @@ func Vote(me *users.User, target int64, liked bool) (VoteResult, bool) {
 		return res, true
 	}
 	p, q := Pair(me.Id, target)
-	upsert("{{matches}}", db.H{"user_a": p, "user_b": q, "created_at": time.Now().UTC()}, nil, "user_a", "user_b")
+	now := time.Now().UTC()
+	upsert("{{matches}}", db.H{"user_a": p, "user_b": q, "created_at": now, "last_at": now}, nil, "user_a", "user_b") // last_at — сортировка чатов до первого сообщения
 	res = VoteResult{Match: true, MatchId: MatchId(me.Id, target), Name: other.Name, Avatar: other.Avatar()}
 	hub.Send(target, "match", VoteResult{Match: true, MatchId: res.MatchId, Name: me.Name, Avatar: me.Avatar()})
 	return res, true
@@ -219,11 +213,7 @@ func BlockedEither(x, y int64) bool {
 
 // BlockedSet — все, с кем у uid блокировка в любую сторону (один запрос вместо запроса на каждого).
 func BlockedSet(uid int64) map[int64]bool {
-	out := map[int64]bool{}
-	for _, v := range app.Db.CreateCommand("SELECT blocked_id FROM {{blocks}} WHERE blocker_id = :u UNION SELECT blocker_id FROM {{blocks}} WHERE blocked_id = :u").BindValue(":u", uid).MustColumn() {
-		out[toInt64(v)] = true
-	}
-	return out
+	return arr.Set(app.Db.CreateCommand("SELECT blocked_id FROM {{blocks}} WHERE blocker_id = :u UNION SELECT blocker_id FROM {{blocks}} WHERE blocked_id = :u").BindValue(":u", uid).MustInts())
 }
 
 func Block(me, other int64) {
@@ -271,10 +261,14 @@ func WithDistance(me *users.User, sql string, params db.P) []*users.User {
 	return out
 }
 
+// NotBlockedExpr — то же условие для произвольного выражения с id собеседника (когда alias u нет).
+func NotBlockedExpr(expr string) string {
+	return ` AND NOT EXISTS (SELECT 1 FROM {{blocks}} b WHERE (b.blocker_id = :me AND b.blocked_id = ` + expr + `) OR (b.blocker_id = ` + expr + ` AND b.blocked_id = :me))`
+}
+
 // NotBlocked — условие «нет блокировки между :me и u» для запросов с alias u.
 const NotBlocked = ` AND NOT EXISTS (SELECT 1 FROM {{blocks}} b WHERE (b.blocker_id = :me AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = :me))`
 
-func toInt64(v any) int64 { return db.Row{"v": v}.Int64("v") }
 func fmtInt(n int) string { return strconv.Itoa(n) }
 
 // upsert — Upsert без err (как Must-методы ядра): INSERT OR REPLACE / OR IGNORE из SQLite-версии.
@@ -282,4 +276,89 @@ func upsert(table string, row db.H, updateCols []string, keys ...string) {
 	if _, err := app.Db.Upsert(table, row, updateCols, keys...); err != nil {
 		panic(db.MustError{Err: err})
 	}
+}
+
+// ---------- Выдачи, общие для веба и API v1 ----------
+
+// Encounters — колода «Встреч»: 12 лучших из 200 кандидатов, с фото.
+func Encounters(me *users.User) []*users.User {
+	f := DefaultFilter(me)
+	f.ExcludeVoted = true
+	f.Limit = 200 // на экран идут 12 лучших — выбирать их из 200 случайно перемешанных достаточно
+	list := Candidates(me, f)
+	Rank(me, list, f.MaxKm)
+	if len(list) > 12 {
+		list = list[:12]
+	}
+	users.FillPhotos(list)
+	return list
+}
+
+// Nearby — «Рядом»: по расстоянию, не больше 90, с фото.
+func Nearby(me *users.User, f Filter) []*users.User {
+	people := Candidates(me, f)
+	sort.Slice(people, func(i, j int) bool { return people[i].DistKm < people[j].DistKm })
+	if len(people) > 90 {
+		people = people[:90]
+	}
+	users.FillPhotos(people)
+	return people
+}
+
+// Relation — что связывает меня с анкетой: мэтч, мой голос (-1 — не голосовал), «я ему нравлюсь» (видно с Premium).
+// Заодно отмечает визит (кроме невидимки с Premium — это внутри Visit).
+type Relation struct {
+	MatchId int64
+	MyVote  int
+	LikedMe bool
+}
+
+func Relate(me *users.User, other int64) Relation {
+	r := Relation{MyVote: -1}
+	if other == me.Id {
+		return r
+	}
+	Visit(me, other)
+	r.MatchId = MatchId(me.Id, other)
+	if v := app.Db.CreateCommand("SELECT liked FROM {{votes}} WHERE voter_id = :me AND target_id = :id", db.P{":me": me.Id, ":id": other}).MustRow(); v != nil {
+		r.MyVote = v.Int("liked")
+	}
+	n := app.Db.CreateCommand("SELECT COUNT(*) FROM {{votes}} WHERE voter_id = :id AND target_id = :me AND liked = 1", db.P{":id": other, ":me": me.Id}).MustInt()
+	r.LikedMe = n > 0 && me.IsPremium()
+	return r
+}
+
+// Likers — кто меня лайкнул без ответа; Matches — взаимные. Оба с расстоянием, свежие сверху.
+func Likers(me *users.User) []*users.User {
+	return WithDistance(me, `SELECT u.* FROM {{votes}} v INNER JOIN {{users}} u ON u.id = v.voter_id
+		WHERE v.target_id = :me AND v.liked = 1
+		AND NOT EXISTS (SELECT 1 FROM {{votes}} m WHERE m.voter_id = :me AND m.target_id = v.voter_id)`+NotBlocked+`
+		ORDER BY v.created_at DESC LIMIT 200`, db.P{":me": me.Id})
+}
+
+func Matches(me *users.User) []*users.User {
+	return WithDistance(me, `SELECT u.* FROM {{matches}} x INNER JOIN {{users}} u ON u.id = CASE WHEN x.user_a = :me THEN x.user_b ELSE x.user_a END
+		WHERE (x.user_a = :me OR x.user_b = :me)`+NotBlocked+` ORDER BY x.created_at DESC LIMIT 200`, db.P{":me": me.Id})
+}
+
+// Visitor — гость анкеты и время визита.
+type Visitor struct {
+	U  *users.User
+	At time.Time
+}
+
+// Visitors — кто открывал мою анкету за 30 дней, свежие сверху.
+func Visitors(me *users.User) []Visitor {
+	rows := app.Db.CreateCommand(`SELECT v.visitor_id, v.at FROM {{visits}} v INNER JOIN {{users}} u ON u.id = v.visitor_id
+		WHERE v.visited_id = :me AND v.at > :since`+NotBlocked+` ORDER BY v.at DESC LIMIT 100`,
+		db.P{":me": me.Id, ":since": time.Now().AddDate(0, 0, -30).UTC()}).MustAll()
+	byId := users.ByIds(rows.IntColumn("visitor_id"))
+	list := []Visitor{}
+	for _, r := range rows {
+		if u := byId[r.Int64("visitor_id")]; u != nil {
+			u.DistKm = users.HaversineKm(me.Lat, me.Lng, u.Lat, u.Lng)
+			list = append(list, Visitor{u, r.Time("at")})
+		}
+	}
+	return list
 }

@@ -16,6 +16,7 @@ import (
 
 	"whales.team/go1/app"
 	"whales.team/go1/db"
+	"whales.team/go1/helpers/arr"
 	"whales.team/go1/web"
 )
 
@@ -63,11 +64,8 @@ func ById(id int64) *User {
 
 // PhotoUrls — адреса фото анкеты по порядку.
 func PhotoUrls(uid int64) []string {
-	out := []string{}
-	for _, f := range app.Db.CreateCommand("SELECT file FROM {{photos}} WHERE user_id = :uid ORDER BY pos, id").BindValue(":uid", uid).MustColumn() {
-		out = append(out, photos.Url(fmt.Sprint(f)))
-	}
-	return out
+	files := app.Db.CreateCommand("SELECT file FROM {{photos}} WHERE user_id = :uid ORDER BY pos, id").BindValue(":uid", uid).MustStrings()
+	return arr.Map(files, photos.Url)
 }
 
 /*
@@ -206,14 +204,8 @@ func FillPhotos(list []*User) {
 	if len(list) == 0 {
 		return
 	}
-	ids := make([]int64, len(list))
-	byId := map[int64]*User{}
-	for i, u := range list {
-		ids[i] = u.Id
-		u.Photos = nil
-		byId[u.Id] = u
-	}
-	rows := app.Db.Query().Select("user_id", "file").From("{{photos}}").Where(db.In("user_id", ids)).OrderBy("user_id", "pos", "id").MustAll()
+	byId := arr.IndexBy(list, func(u *User) int64 { u.Photos = nil; return u.Id })
+	rows := app.Db.Query().Select("user_id", "file").From("{{photos}}").Where(db.In("user_id", arr.Keys(byId))).OrderBy("user_id", "pos", "id").MustAll()
 	for _, r := range rows {
 		if u := byId[r.Int64("user_id")]; u != nil {
 			u.Photos = append(u.Photos, photos.Url(r.Str("file")))
@@ -340,6 +332,9 @@ func ParseProfileForm(c *web.Context, full bool) (db.H, string) {
 
 // Counts — счётчики навигации: новые симпатии без ответа и непрочитанные (перенос counts() из render.go).
 // {{$counts := counts .Ctx}} в лейауте, один раз на запрос; у гостя — нули.
+// UnreadFn — счётчик непрочитанных; ставит пакет chat (chat.Unread), сам users о сообщениях не знает (иначе цикл импортов).
+var UnreadFn = func(uid int64) int { return 0 }
+
 type CountsT struct {
 	Likes  int
 	Unread int
@@ -359,10 +354,7 @@ func Counts(c *web.Context) CountsT {
 			AND NOT EXISTS (SELECT 1 FROM {{votes}} m WHERE m.voter_id = :uid AND m.target_id = v.voter_id)
 			AND NOT EXISTS (SELECT 1 FROM {{blocks}} b WHERE (b.blocker_id = :uid AND b.blocked_id = v.voter_id) OR (b.blocker_id = v.voter_id AND b.blocked_id = :uid))
 		`).BindValue(":uid", uid).MustInt())
-		n.Unread = int(c.Db().CreateCommand(`
-			SELECT COUNT(*) FROM {{messages}} m INNER JOIN {{matches}} x ON x.id = m.match_id
-			WHERE (x.user_a = :uid OR x.user_b = :uid) AND m.sender_id <> :uid AND m.read_at IS NULL
-		`).BindValue(":uid", uid).MustInt())
+		n.Unread = UnreadFn(uid)
 	}
 	c.SetValue("users.counts", n)
 	return n

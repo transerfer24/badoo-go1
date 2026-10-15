@@ -3,7 +3,13 @@
 package config
 
 import (
+	"net/http"
+	"strings"
+
+	"badoo/commands"
 	"badoo/components/auth"
+	"badoo/components/hub"
+	"badoo/components/push"
 	"badoo/components/users"
 	"badoo/controllers"
 
@@ -38,6 +44,9 @@ var App = go1.Config{
 		Addr:       config.Env("ADDR", ":8080"),
 		TrustProxy: config.Env("TRUST_PROXY") == "1", // хостинг проксирует в приложение, реальный IP в X-Real-IP
 	},
+	// CORS только для API приложения (как corsV1): авторизация заголовком, cookie не участвуют — любой origin безопасен.
+	// Нативному приложению CORS не нужен, это для веб-сборки Expo и отладки из браузера.
+	Middlewares: []web.Middleware{apiCors},
 	// Сессии в зашифрованной cookie — для веб-версии. CSRF включается автоматически.
 	Session: web.SessionConfig{Key: cookieKey, PreviousKeys: cookiePrev},
 	// Пользователи — своя таблица users (как в старом бэкенде): вход через Neuronet, у мобильного приложения —
@@ -83,7 +92,12 @@ var App = go1.Config{
 		&controllers.MeController{},
 		&controllers.PeopleController{},
 		&controllers.SocialController{},
+		// API v1 — мобильное приложение
+		&controllers.ApiMetaController{}, &controllers.ApiAuthController{}, &controllers.ApiMeController{},
+		&controllers.ApiPeopleController{}, &controllers.ApiSocialController{}, &controllers.ApiPremiumController{},
+		&controllers.ApiMeetupsController{},
 	},
+	Commands: commands.All,
 	// Маршруты как в старом main.go routes(); API v1 и остальные страницы — по мере переноса (PLAN.md).
 	Rules: web.Rules{
 		{"", "site/index"},
@@ -120,8 +134,52 @@ var App = go1.Config{
 		{"POST api/chat/<id:\\d+>/read", "social/chat-read"},
 		{"GET api/events", "social/events"},
 		{"GET api/counts", "social/counts"},
+
+		// ---------- API v1 мобильного приложения: пути и JSON как у старого бэкенда (api_v1.go) ----------
+		{"GET api/v1/meta", "api-meta/index"},
+		{"POST api/v1/auth/<action:(email|password|send-code|verify-code|register|logout|signup|login)>", "api-auth/<action>"},
+		{"GET api/v1/me", "api-me/index"},
+		{"PUT api/v1/me", "api-me/update"},
+		{"DELETE api/v1/me", "api-me/delete"},
+		{"PUT api/v1/me/settings", "api-me/settings"},
+		{"POST api/v1/me/photos", "api-me/photo-upload"},
+		{"DELETE api/v1/me/photos/<id:\\d+>", "api-me/photo-delete"},
+		{"POST api/v1/me/photos/<id:\\d+>/main", "api-me/photo-main"},
+		{"POST api/v1/me/verify", "api-me/verify"},
+		{"POST api/v1/me/push", "api-me/push-register"},
+		{"DELETE api/v1/me/push", "api-me/push-unregister"},
+		{"GET api/v1/encounters", "api-people/encounters"},
+		{"POST api/v1/votes", "api-people/votes"},
+		{"POST api/v1/undo", "api-people/undo"},
+		{"GET api/v1/nearby", "api-people/nearby"},
+		{"GET api/v1/users/<id:\\d+>", "api-people/user"},
+		{"POST api/v1/users/<id:\\d+>/block", "api-people/block"},
+		{"POST api/v1/users/<id:\\d+>/report", "api-people/report"},
+		{"GET api/v1/likes", "api-social/likes"},
+		{"GET api/v1/visitors", "api-social/visitors"},
+		{"GET api/v1/counts", "api-social/counts"},
+		{"GET api/v1/chats", "api-social/chats"},
+		{"GET api/v1/chats/<id:\\d+>", "api-social/chat"},
+		{"GET api/v1/chats/<id:\\d+>/messages", "api-social/chat-messages"},
+		{"POST api/v1/chats/<id:\\d+>/messages", "api-social/chat-send"},
+		{"POST api/v1/chats/<id:\\d+>/read", "api-social/chat-read"},
+		{"GET api/v1/events", "api-social/events"},
+		{"GET api/v1/premium", "api-premium/index"},
+		{"POST api/v1/premium", "api-premium/activate"},
+		{"DELETE api/v1/premium", "api-premium/cancel"},
+		{"GET api/v1/meetups", "api-meetups/index"},
+		{"POST api/v1/meetups", "api-meetups/create"},
+		{"GET api/v1/meetups/<id:\\d+>", "api-meetups/view"},
+		{"DELETE api/v1/meetups/<id:\\d+>", "api-meetups/delete"},
+		{"POST api/v1/meetups/<id:\\d+>/join", "api-meetups/join"},
+		{"DELETE api/v1/meetups/<id:\\d+>/join", "api-meetups/leave"},
+		{"POST api/v1/meetups/<id:\\d+>/checkin", "api-meetups/checkin"},
 	},
 	OnInit: func(a *go1.Application) error {
+		// Push: событие ушло человеку без открытой ленты (hub) → задача push.send в очереди → воркер шлёт в Expo.
+		push.Register()
+		hub.Offline = push.Notify
+
 		// Лейауту нужна анкета текущего пользователя (аватар, Premium, onboarded) — функцией шаблона,
 		// один раз на запрос: {{$me := me .Ctx}} (docs/style.md ядра, «Перенос с Yii», п. 2).
 		a.Server.Views.AddFunc("me", users.Current)
@@ -145,4 +203,16 @@ func photoStorage() files.Storage {
 		Secret:   config.Env("S3_SECRET"),
 		// папка внутри бакета — в имени файла при сохранении (Params["photos.prefix"]), у files.S3 префикса нет
 	}
+}
+
+// apiCors — web.Cors ядра, но только на /api/v1/ и /uploads/ (остальной сайт работает по cookie, ему «*» не нужен).
+func apiCors(next http.Handler) http.Handler {
+	cors := web.Cors{Origins: []string{"*"}, Headers: []string{"Authorization", "Content-Type"}}.Middleware()(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/") || strings.HasPrefix(r.URL.Path, "/uploads/") {
+			cors.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

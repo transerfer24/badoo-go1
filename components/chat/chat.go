@@ -2,7 +2,6 @@
 package chat
 
 import (
-	"sort"
 	"strings"
 	"time"
 
@@ -24,36 +23,48 @@ type Thread struct {
 }
 
 // Threads — все пары пользователя с последним сообщением и непрочитанными, свежие сверху.
+// Как в Yii: queryAll → getColumn → findAll(IN) → склейка. last_msg_id/last_at/unread_* лежат в matches
+// (миграция m261015_120000), подзапросов к messages нет.
 func Threads(me *users.User) []Thread {
 	rows := app.Db.CreateCommand(`
-		SELECT x.id, CASE WHEN x.user_a = :me THEN x.user_b ELSE x.user_a END AS other, x.created_at,
-		  COALESCE((SELECT body FROM {{messages}} m WHERE m.match_id = x.id ORDER BY m.id DESC LIMIT 1), '') AS body,
-		  COALESCE((SELECT sender_id FROM {{messages}} m WHERE m.match_id = x.id ORDER BY m.id DESC LIMIT 1), 0) AS sender,
-		  (SELECT created_at FROM {{messages}} m WHERE m.match_id = x.id ORDER BY m.id DESC LIMIT 1) AS at,
-		  (SELECT COUNT(*) FROM {{messages}} m WHERE m.match_id = x.id AND m.sender_id <> :me AND m.read_at IS NULL) AS unread
-		FROM {{matches}} x WHERE x.user_a = :me OR x.user_b = :me
+		SELECT x.id, x.last_at,
+		  CASE WHEN x.user_a = :me THEN x.user_b ELSE x.user_a END AS other,
+		  CASE WHEN x.user_a = :me THEN x.unread_a ELSE x.unread_b END AS unread,
+		  COALESCE(m.body, '') AS body, COALESCE(m.sender_id, 0) AS sender
+		FROM {{matches}} x LEFT JOIN {{messages}} m ON m.id = x.last_msg_id
+		WHERE (x.user_a = :me OR x.user_b = :me)`+discovery.NotBlockedExpr("CASE WHEN x.user_a = :me THEN x.user_b ELSE x.user_a END")+`
+		ORDER BY x.last_at DESC
 	`).BindValue(":me", me.Id).MustAll()
+	people := users.ByIds(rows.IntColumn("other")) // анкеты собеседников одним IN, map по id
 
-	others := make([]int64, 0, len(rows))
-	for _, r := range rows {
-		others = append(others, r.Int64("other"))
-	}
-	byId := users.ByIds(others)
-	blocked := discovery.BlockedSet(me.Id)
 	out := []Thread{}
 	for _, r := range rows {
-		u := byId[r.Int64("other")]
-		if u == nil || blocked[u.Id] {
-			continue
+		if u := people[r.Int64("other")]; u != nil {
+			out = append(out, Thread{
+				MatchId: r.Int64("id"), U: u, Last: r.Str("body"), LastMine: r.Int64("sender") == me.Id,
+				LastAt: r.Time("last_at"), Unread: r.Int("unread"),
+			})
 		}
-		at := r.Time("at")
-		if at.IsZero() {
-			at = r.Time("created_at")
-		}
-		out = append(out, Thread{r.Int64("id"), u, r.Str("body"), r.Int64("sender") == me.Id, at, r.Int("unread")})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].LastAt.After(out[j].LastAt) })
 	return out
+}
+
+func init() { users.UnreadFn = Unread }
+
+// Rebuild — пересчитать last_msg_id/last_at/unread_* по таблице messages (после импорта данных).
+// Принимает транзакцию импорта: отдельное соединение ждало бы её блокировку записи.
+func Rebuild(tx *db.Tx) {
+	tx.CreateCommand(`UPDATE {{matches}} SET
+		last_msg_id = (SELECT MAX(id) FROM {{messages}} WHERE match_id = {{matches}}.id),
+		last_at = COALESCE((SELECT MAX(created_at) FROM {{messages}} WHERE match_id = {{matches}}.id), created_at),
+		unread_a = (SELECT COUNT(*) FROM {{messages}} WHERE match_id = {{matches}}.id AND sender_id = {{matches}}.user_b AND read_at IS NULL),
+		unread_b = (SELECT COUNT(*) FROM {{messages}} WHERE match_id = {{matches}}.id AND sender_id = {{matches}}.user_a AND read_at IS NULL)`).MustExecute()
+}
+
+// Unread — непрочитанные у пользователя по всем парам (счётчик в навигации): SUM по двум индексам, без messages.
+func Unread(uid int64) int {
+	return int(app.Db.CreateCommand(`SELECT COALESCE(SUM(CASE WHEN user_a = :me THEN unread_a ELSE unread_b END), 0)
+		FROM {{matches}} WHERE user_a = :me OR user_b = :me`).BindValue(":me", uid).MustInt())
 }
 
 type Msg struct {
@@ -101,6 +112,11 @@ func Send(me *users.User, peer *users.User, matchId int64, body string) (Msg, bo
 	}
 	at := time.Now().UTC()
 	id := app.Db.MustInsert("{{messages}}", db.H{"match_id": matchId, "sender_id": me.Id, "body": body, "created_at": at})
+	// шапка пары: последнее сообщение и +1 непрочитанное собеседнику (unread_a — у user_a, unread_b — у user_b)
+	app.Db.CreateCommand(`UPDATE {{matches}} SET last_msg_id = :id, last_at = :at,
+		unread_a = unread_a + CASE WHEN user_a = :peer THEN 1 ELSE 0 END,
+		unread_b = unread_b + CASE WHEN user_b = :peer THEN 1 ELSE 0 END WHERE id = :mid`,
+		db.P{":id": id, ":at": at, ":peer": peer.Id, ":mid": matchId}).MustExecute()
 	m := Msg{Id: id, Mine: true, Body: body, At: users.Ts(at)}
 	hub.Send(peer.Id, "message", map[string]any{"matchId": matchId, "msg": Msg{Id: id, Body: body, At: users.Ts(at)}, "from": me.Name})
 	return m, true
@@ -111,6 +127,8 @@ func MarkRead(me *users.User, matchId int64) int64 {
 	n := app.Db.CreateCommand("UPDATE {{messages}} SET read_at = :now WHERE match_id = :mid AND sender_id <> :me AND read_at IS NULL",
 		db.P{":now": time.Now().UTC(), ":mid": matchId, ":me": me.Id}).MustExecute()
 	if n > 0 {
+		app.Db.CreateCommand(`UPDATE {{matches}} SET unread_a = CASE WHEN user_a = :me THEN 0 ELSE unread_a END,
+			unread_b = CASE WHEN user_b = :me THEN 0 ELSE unread_b END WHERE id = :mid`, db.P{":me": me.Id, ":mid": matchId}).MustExecute()
 		if peer := Peer(me, matchId); peer != nil {
 			hub.Send(peer.Id, "read", map[string]any{"matchId": matchId})
 		}

@@ -14,8 +14,8 @@ BIN=badoo-app
 echo "=== Сборка (linux/amd64) ==="
 mkdir -p build
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o "build/$BIN" .
-# COPYFILE_DISABLE — без расширенных атрибутов macOS в архиве (иначе tar на сервере ругается на com.apple.provenance)
-COPYFILE_DISABLE=1 tar czf build/assets.tgz views web $(ls -d messages 2>/dev/null)
+# без расширенных атрибутов macOS в архиве (иначе tar на сервере ругается на com.apple.provenance в pax-заголовках)
+COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -czf build/assets.tgz views web $(ls -d messages 2>/dev/null)
 
 echo "=== Заливка на $DEPLOY_SSH:$DEPLOY_DIR ==="
 ssh "$DEPLOY_SSH" "mkdir -p $DEPLOY_DIR/runtime $DEPLOY_DIR/logs"

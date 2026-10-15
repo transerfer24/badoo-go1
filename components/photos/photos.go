@@ -152,3 +152,45 @@ func downscale(src image.Image, maxSide int) image.Image {
 	}
 	return dst
 }
+
+// ---------- Фото анкеты (таблица photos) — общее для веба (MeController) и API v1 ----------
+
+type Photo struct {
+	Id  int64
+	Url string
+}
+
+// Mine — фото пользователя по порядку (главное первым).
+func Mine(uid int64) []Photo {
+	out := []Photo{}
+	for _, r := range app.Db.CreateCommand("SELECT id, file FROM {{photos}} WHERE user_id = :uid ORDER BY pos, id").BindValue(":uid", uid).MustAll() {
+		out = append(out, Photo{Id: r.Int64("id"), Url: Url(r.Str("file"))})
+	}
+	return out
+}
+
+// Add — записать сохранённый файл последним в галерею.
+func Add(uid int64, name string) {
+	pos := app.Db.CreateCommand("SELECT COALESCE(MAX(pos), 0) + 1 FROM {{photos}} WHERE user_id = :uid").BindValue(":uid", uid).MustInt()
+	app.Db.MustInsert("{{photos}}", db.H{"user_id": uid, "file": name, "pos": pos})
+}
+
+// Remove — удалить своё фото вместе с файлом; false — не своё/нет такого.
+func Remove(uid, id int64) bool {
+	row := app.Db.CreateCommand("SELECT file FROM {{photos}} WHERE id = :id AND user_id = :uid", db.P{":id": id, ":uid": uid}).MustRow()
+	if row == nil {
+		return false
+	}
+	app.Db.MustDelete("{{photos}}", db.H{"id": id, "user_id": uid})
+	Delete(row.Str("file"))
+	return true
+}
+
+// SetMain — сделать фото главным (pos 0, остальные сдвигаются).
+func SetMain(uid, id int64) bool {
+	if n := app.Db.MustUpdate("{{photos}}", db.H{"pos": 0}, db.H{"id": id, "user_id": uid}); n != 1 {
+		return false
+	}
+	app.Db.CreateCommand("UPDATE {{photos}} SET pos = pos + 1 WHERE user_id = :uid AND id <> :id", db.P{":uid": uid, ":id": id}).MustExecute()
+	return true
+}

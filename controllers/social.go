@@ -10,7 +10,6 @@ import (
 	"badoo/components/hub"
 	"badoo/components/users"
 
-	"whales.team/go1/db"
 	"whales.team/go1/web"
 )
 
@@ -33,39 +32,15 @@ func (c *SocialController) ActionLikes() error {
 	if tab != "mutual" {
 		tab = "you"
 	}
-	likers := discovery.WithDistance(me, `SELECT u.* FROM {{votes}} v INNER JOIN {{users}} u ON u.id = v.voter_id
-		WHERE v.target_id = :me AND v.liked = 1
-		AND NOT EXISTS (SELECT 1 FROM {{votes}} m WHERE m.voter_id = :me AND m.target_id = v.voter_id)`+discovery.NotBlocked+`
-		ORDER BY v.created_at DESC LIMIT 200`, db.P{":me": me.Id})
-	matches := discovery.WithDistance(me, `SELECT u.* FROM {{matches}} x INNER JOIN {{users}} u ON u.id = CASE WHEN x.user_a = :me THEN x.user_b ELSE x.user_a END
-		WHERE (x.user_a = :me OR x.user_b = :me)`+discovery.NotBlocked+` ORDER BY x.created_at DESC LIMIT 200`, db.P{":me": me.Id})
+	likers, matches := discovery.Likers(me), discovery.Matches(me)
 	c.View.Params = web.M{"active": "likes"}
 
 	return c.Render("likes", web.M{"tab": tab, "likers": likers, "matches": matches, "premium": me.IsPremium()})
 }
 
-type visitor struct {
-	U  *users.User
-	At time.Time
-}
-
 func (c *SocialController) ActionVisitors() error {
 	me := users.Current(c.Context)
-	rows := c.Db().CreateCommand(`SELECT v.visitor_id, v.at FROM {{visits}} v INNER JOIN {{users}} u ON u.id = v.visitor_id
-		WHERE v.visited_id = :me AND v.at > :since`+discovery.NotBlocked+` ORDER BY v.at DESC LIMIT 100`,
-		db.P{":me": me.Id, ":since": time.Now().AddDate(0, 0, -30).UTC()}).MustAll()
-	ids := make([]int64, 0, len(rows))
-	for _, r := range rows {
-		ids = append(ids, r.Int64("visitor_id"))
-	}
-	byId := users.ByIds(ids)
-	list := []visitor{}
-	for _, r := range rows {
-		if u := byId[r.Int64("visitor_id")]; u != nil {
-			u.DistKm = users.HaversineKm(me.Lat, me.Lng, u.Lat, u.Lng)
-			list = append(list, visitor{u, r.Time("at")})
-		}
-	}
+	list := discovery.Visitors(me)
 	c.View.Params = web.M{"active": "likes"}
 	return c.Render("visitors", web.M{"visitors": list})
 }

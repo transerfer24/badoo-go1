@@ -2,10 +2,11 @@ package controllers
 
 import (
 	"fmt"
-	"hash/fnv"
 	"html"
 	"time"
 	"unicode"
+
+	"badoo/components/users"
 
 	"whales.team/go1/app"
 	"whales.team/go1/web"
@@ -31,19 +32,12 @@ func (c *SiteController) ActionError() error {
 	return c.Render("error")
 }
 
-var avatarPalettes = [][2]string{
-	{"#0E7C74", "#5FD3C4"}, {"#E0603F", "#F7B267"}, {"#3D5A80", "#98C1D9"}, {"#7A5C9E", "#D3B8F0"},
-	{"#2F855A", "#9AE6B4"}, {"#B83280", "#F6A6D1"}, {"#C05621", "#FBD38D"}, {"#2B6CB0", "#90CDF4"},
-}
-
 // GET /avatar/<id>.svg — сгенерированный аватар для анкет без фото (перенос handleAvatar из images.go).
 func (c *SiteController) ActionAvatar() error {
 	id := c.GetInt64("id")
 	name := app.Db.CreateCommand("SELECT name FROM {{users}} WHERE id = :id").BindValue(":id", id).MustString()
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(fmt.Sprint(id)))
-	sum := h.Sum32()
-	p := avatarPalettes[sum%uint32(len(avatarPalettes))]
+	sum := users.Hash32(id)
+	p := users.AvatarPalettes[users.ColorIndex(id)]
 	initial := "?"
 	for _, r := range name {
 		initial = string(unicode.ToUpper(r))

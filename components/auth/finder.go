@@ -10,6 +10,7 @@ import (
 
 	"whales.team/go1/app"
 	"whales.team/go1/db"
+	"whales.team/go1/helpers/security"
 	"whales.team/go1/web"
 )
 
@@ -67,4 +68,22 @@ func fromRow(row db.Row) User {
 		Premium:  !premium.IsZero() && premium.After(time.Now()),
 		AuthKey:  row.Str("auth_key"),
 	}
+}
+
+// TokenTTL — срок Bearer-токена мобильного приложения (как sessionTTL старого бэкенда).
+const TokenTTL = 90 * 24 * time.Hour
+
+// NewToken — выдать Bearer-токен приложению после входа через Neuronet (/api/v1/auth/*).
+func NewToken(uid int64, platform string) (string, error) {
+	tok := security.RandomString(43) // 32 байта в base64 — та же длина, что раньше
+	now := time.Now().UTC()
+	// CreateCommand, а не Insert: у sessions нет автоинкремента, Insert ждал бы RETURNING id
+	_, err := app.Db.CreateCommand(`INSERT INTO {{sessions}} (token, user_id, platform, expires_at, created_at)
+		VALUES (:token, :uid, :platform, :exp, :now)`, db.P{":token": tok, ":uid": uid, ":platform": platform, ":exp": now.Add(TokenTTL), ":now": now}).Execute()
+	return tok, err
+}
+
+// DropToken — выход в приложении.
+func DropToken(token string, uid int64) {
+	app.Db.MustDelete("{{sessions}}", db.H{"token": token, "user_id": uid})
 }

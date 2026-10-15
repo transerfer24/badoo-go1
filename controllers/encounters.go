@@ -24,15 +24,7 @@ func (c *EncountersController) ActionIndex() error {
 
 func (c *EncountersController) ActionCards() error {
 	me := users.Current(c.Context)
-	f := discovery.DefaultFilter(me)
-	f.ExcludeVoted = true
-	f.Limit = 200 // на экран идут 12 лучших — выбирать их из 200 случайно перемешанных достаточно
-	list := discovery.Candidates(me, f)
-	discovery.Rank(me, list, f.MaxKm)
-	if len(list) > 12 {
-		list = list[:12]
-	}
-	users.FillPhotos(list)
+	list := discovery.Encounters(me)
 	cards := make([]discovery.Card, 0, len(list))
 	for _, u := range list {
 		cards = append(cards, discovery.ToCard(u))

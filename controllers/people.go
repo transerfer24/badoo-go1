@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"sort"
 	"strconv"
 	"strings"
 
@@ -44,12 +43,7 @@ func (c *PeopleController) ActionNearby() error {
 		f.VerifiedOnly = c.Get("verified") == "1"
 		f.OnlineOnly = c.Get("online") == "1"
 	}
-	people := discovery.Candidates(me, f)
-	sort.Slice(people, func(i, j int) bool { return people[i].DistKm < people[j].DistKm })
-	if len(people) > 90 {
-		people = people[:90]
-	}
-	users.FillPhotos(people)
+	people := discovery.Nearby(me, f)
 	c.View.Params = web.M{"active": "nearby"}
 
 	return c.Render("nearby", web.M{"people": people, "f": f})
@@ -64,16 +58,8 @@ func (c *PeopleController) ActionProfile() error {
 	}
 	u.DistKm = users.HaversineKm(me.Lat, me.Lng, u.Lat, u.Lng)
 
-	res := web.M{"u": u, "match_id": int64(0), "my_vote": -1, "liked_me": false, "reasons": discovery.ReportReasons, "is_me": u.Id == me.Id}
-	if u.Id != me.Id {
-		discovery.Visit(me, id)
-		res["match_id"] = discovery.MatchId(me.Id, id)
-		if v := c.Db().CreateCommand("SELECT liked FROM {{votes}} WHERE voter_id = :me AND target_id = :id").BindValue(":me", me.Id).BindValue(":id", id).MustRow(); v != nil {
-			res["my_vote"] = v.Int("liked")
-		}
-		n := c.Db().CreateCommand("SELECT COUNT(*) FROM {{votes}} WHERE voter_id = :id AND target_id = :me AND liked = 1").BindValue(":id", id).BindValue(":me", me.Id).MustInt()
-		res["liked_me"] = n > 0 && me.IsPremium()
-	}
+	rel := discovery.Relate(me, id)
+	res := web.M{"u": u, "match_id": rel.MatchId, "my_vote": rel.MyVote, "liked_me": rel.LikedMe, "reasons": discovery.ReportReasons, "is_me": u.Id == me.Id}
 	c.View.SetTitle(u.Name)
 	return c.Render("profile", res)
 }
