@@ -30,9 +30,9 @@ func (c *ApiAuthController) Init() {
 }
 
 func (c *ApiAuthController) Behaviors() []web.Behavior {
-	// первый шаг публично отвечает, есть ли аккаунт; пароль — перебор: лимит по IP, как rateOK в оригинале
+	// первый шаг публично отвечает, есть ли аккаунт; пароль и код — перебор, send-code — спам кодами: лимит по IP, как rateOK в оригинале
 	return append(c.ApiController.Behaviors(),
-		web.RateLimit{Limit: 10, Window: 10 * time.Minute, Only: []string{"email", "password", "register"},
+		web.RateLimit{Limit: 10, Window: 10 * time.Minute, Only: []string{"email", "password", "send-code", "verify-code", "register"},
 			Key: func(c *web.Context) string { return "ip:" + c.Request.UserIP }})
 }
 

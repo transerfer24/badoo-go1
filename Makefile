@@ -11,7 +11,8 @@ run:             ## dev-сервер
 migrate:
 	go run . migrate
 
-test:
+test:             ## правила URL (на пустой SQLite, без .env-базы) + тесты
+	DB_DSN="file:$$(mktemp -d)/routes.db" go run . routes --check | tail -1
 	go test -race ./...
 
 build:           ## бинарник под Linux-сервер

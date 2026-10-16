@@ -28,10 +28,6 @@ func (c *SiteController) ActionIndex() error {
 	return c.Render("landing", web.M{"count": count})
 }
 
-func (c *SiteController) ActionError() error {
-	return c.Render("error")
-}
-
 // GET /avatar/<id>.svg — сгенерированный аватар для анкет без фото (перенос handleAvatar из images.go).
 func (c *SiteController) ActionAvatar() error {
 	id := c.GetInt64("id")

@@ -174,8 +174,20 @@ var App = go1.Config{
 		{"POST api/v1/meetups/<id:\\d+>/join", "api-meetups/join"},
 		{"DELETE api/v1/meetups/<id:\\d+>/join", "api-meetups/leave"},
 		{"POST api/v1/meetups/<id:\\d+>/checkin", "api-meetups/checkin"},
+
+		// ---------- Админка (модули admin и files ядра): неявный роутинг выключен в OnInit, поэтому пути — явно ----------
+		{"GET admin", "admin/dashboard/index"},
+		{"GET admin/<controller:[a-z-]+>", "admin/<controller>/index"},
+		{"GET admin/<controller:[a-z-]+>/<action:(index|view|create|update)>", "admin/<controller>/<action>"},
+		{"POST admin/<controller:[a-z-]+>/<action:(create|update|delete)>", "admin/<controller>/<action>"},
+		{"GET files/file", "files/file/index"},
+		{"GET files/file/<action:(index|view|create|update)>", "files/file/<action>"},
+		{"POST files/file/<action:(create|update|delete)>", "files/file/<action>"},
 	},
 	OnInit: func(a *go1.Application) error {
+		// Только явные правила выше: без этого любой экшен открыт по GET как /controller/action, и ссылка
+		// вида /people/block?id=5 срабатывает с cookie (CSRF ядро проверяет лишь не-GET). make test → routes --check.
+		a.Server.Router.EnableDefaultRouting = false
 		// Push: событие ушло человеку без открытой ленты (hub) → задача push.send в очереди → воркер шлёт в Expo.
 		push.Register()
 		hub.Offline = push.Notify
