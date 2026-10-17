@@ -18,7 +18,7 @@
 </section>
 
 <section style="min-height: 700px;">
-    <h4 style="margin-bottom:10px;">Записей: <span class="log-count">0</span></h4>
+    <h4 style="margin-bottom:10px;">Записей: <span class="log-count">0</span> <button type="button" class="btn btn--secondary btn--sm export-btn" style="float:right;" title="Выгрузить в CSV (Excel) по текущим фильтрам, до 50 000 строк"><i class="fa fa-download"></i> CSV</button></h4>
     <table class="border--round table--alternate-row">
         <thead><tr><th>Когда</th><th>Админ</th><th>Действие</th><th>Пользователь</th><th>Подробности</th><th>IP</th></tr></thead>
         <tbody id="log_result"></tbody>
@@ -44,6 +44,7 @@
                     '<td>' + (parseInt(v.user_id) ? user_link(v.user_id, v.user_name) : '—') + '</td><td>' + esc(v.details) + '</td><td class="am-sub">' + esc(v.ip) + '</td></tr>';
             }
         });
+        $('.export-btn').on('click', function () { export_csv('/control/log/export', form_data('#filters')); });
         list.reload();
         var timer = null;
         $('#filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(list.reload, 400); });

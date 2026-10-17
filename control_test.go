@@ -157,7 +157,8 @@ func TestControl(t *testing.T) {
 	// все страницы открываются
 	for _, p := range []string{"/control", "/control/users", "/control/users/view?uid=" + itoa(bobMe.Id), "/control/chats",
 		"/control/chats/view?id=" + mid, "/control/reports", "/control/verification", "/control/photos", "/control/meetups",
-		"/control/log", "/control/permissions"} {
+		"/control/log", "/control/permissions", "/control/analytics", "/control/votes", "/control/visits", "/control/sessions",
+		"/control/system"} {
 		code, body := bossW.get(p)
 		if code != 200 || !strings.Contains(body, "c-sidebar") || !strings.Contains(body, "Пользователи") {
 			t.Fatalf("GET %s: %d %.300s", p, code, body)
@@ -297,6 +298,91 @@ func TestControl(t *testing.T) {
 	bossW.post("/control/meetups/get-meetups", url.Values{"when": {"all"}})
 	if l := bossW.post("/control/log/get-log", url.Values{}); l["count"].(float64) < 6 {
 		t.Fatalf("журнал: %+v", l)
+	}
+
+	// аналитика: воронка по когорте (все трое — сегодня), взаимный лайк Анны и Боба; единственное сообщение удалено выше
+	fun := bossW.post("/control/analytics/get-funnel", url.Values{})
+	if f := fun["funnel"].(map[string]any); f["registered"] != float64(3) || f["liked"] != float64(2) || f["matched"] != float64(2) ||
+		f["wrote"] != float64(0) || f["verified"] != float64(1) {
+		t.Fatalf("воронка: %+v", f)
+	}
+	if a := fun["activity"].(map[string]any); a["likes"] != float64(2) || a["mutual"] != float64(2) {
+		t.Fatalf("активность за период: %+v", a)
+	}
+	if ret := fun["retention"].([]any); len(ret) != 8 || ret[0].(map[string]any)["total"] != float64(3) {
+		t.Fatalf("удержание: %+v", ret)
+	}
+	bossW.post("/control/analytics/get-funnel", url.Values{"gender": {"f"}, "city": {"Мадрид"}, "from": {"2020-01-01"}, "to": {"2099-01-01"}})
+
+	// симпатии: оба голосовавших — в «подозрительных» при пороге 1, у каждого лайк взаимный
+	if s := bossW.post("/control/votes/get-summary", url.Values{"period": {"24h"}}); s["summary"].(map[string]any)["mutual"] != float64(2) {
+		t.Fatalf("сводка голосов: %+v", s)
+	}
+	sus := bossW.post("/control/votes/get-suspects", url.Values{"min": {"1"}, "period": {"30d"}, "banned": {"1"}})
+	if sus["count"] != float64(2) || sus["items"].([]any)[0].(map[string]any)["mutual"] != float64(1) {
+		t.Fatalf("подозрительные: %+v", sus)
+	}
+	for _, f := range []string{"all", "nomutual", "new", "reports"} {
+		bossW.post("/control/votes/get-suspects", url.Values{"min": {"1"}, "flag": {f}, "sort": {"rate"}})
+	}
+	if feed := bossW.post("/control/votes/get-feed", url.Values{"uid": {itoa(bobMe.Id)}, "dir": {"in"}}); feed["count"] != float64(1) {
+		t.Fatalf("лента голосов: %+v", feed)
+	}
+
+	// гости: Боб (снова вошёл в приложение после разблокировки) открыл анкету Анны
+	bobApp := &client{t: t, h: h, token: tr.Token}
+	if code := bobApp.do("GET", "/api/v1/users/"+itoa(annaMe.Id), nil, nil); code != 200 {
+		t.Fatalf("просмотр анкеты: %d", code)
+	}
+	if top := bossW.post("/control/visits/get-top", url.Values{"period": {"24h"}, "banned": {"1"}}); top["count"] != float64(1) {
+		t.Fatalf("гости, топ: %+v", top)
+	}
+	bossW.post("/control/visits/get-top", url.Values{"mode": {"visited"}})
+	bossW.post("/control/visits/get-summary", url.Values{})
+	if feed := bossW.post("/control/visits/get-feed", url.Values{"uid": {itoa(bobMe.Id)}, "dir": {"out"}}); feed["count"] != float64(1) {
+		t.Fatalf("гости, лента: %+v", feed)
+	}
+
+	// сессии: токен целиком не уходит; «завершить» выкидывает из приложения только это устройство
+	bossW.post("/control/sessions/get-stats", url.Values{})
+	bossW.post("/control/sessions/get-flows", url.Values{"expired": {"1"}})
+	ss := bossW.post("/control/sessions/get-sessions", url.Values{"search": {"bob@"}, "state": {"active"}})
+	if ss["count"] != float64(1) {
+		t.Fatalf("сессии Боба: %+v", ss)
+	}
+	sess := ss["items"].([]any)[0].(map[string]any)
+	if tok := sess["token"].(string); len(tok) != 6 || !strings.HasPrefix(tr.Token, tok) {
+		t.Fatalf("токен в админке: %q", tok)
+	}
+	if out := bossW.call("/control/sessions/end", url.Values{"uid": {itoa(bobMe.Id)}, "key": {"0000"}}); out["status"] != float64(404) {
+		t.Fatalf("чужой key: %+v", out)
+	}
+	bossW.post("/control/sessions/end", url.Values{"uid": {itoa(bobMe.Id)}, "key": {sess["key"].(string)}})
+	if code := bobApp.do("GET", "/api/v1/me", nil, nil); code != 401 {
+		t.Fatalf("после завершения сессии: %d", code)
+	}
+
+	// состояние системы; лог — только суперадмину, в тесте файла нет
+	sys := bossW.post("/control/system/get-info", url.Values{})
+	if d := sys["db"].(map[string]any); d["ok"] != true || len(sys["migrations"].(map[string]any)["pending"].([]any)) != 0 {
+		t.Fatalf("состояние системы: %+v", sys["db"])
+	}
+	if lg := bossW.post("/control/system/get-log", url.Values{"name": {"web"}}); lg["missing"] != true {
+		t.Fatalf("лог: %+v", lg)
+	}
+
+	// выгрузки CSV: файл с BOM и заголовком, запись в журнале
+	for _, p := range []string{"/control/users/export", "/control/reports/export", "/control/log/export"} {
+		code, body, hd := bossW.req("POST", p, url.Values{"status": {"all"}}, false)
+		if code != 200 || !strings.HasPrefix(hd.Get("Content-Type"), "text/csv") || !strings.HasPrefix(body, "\xEF\xBB\xBF") {
+			t.Fatalf("выгрузка %s: %d %s %.200s", p, code, hd.Get("Content-Type"), body)
+		}
+	}
+	if _, body, _ := bossW.req("POST", "/control/users/export", url.Values{"search": {"bob@"}}, false); !strings.Contains(body, "bob@x.io") || strings.Contains(body, "anna@x.io") {
+		t.Fatalf("выгрузка с фильтром: %.300s", body)
+	}
+	if l := bossW.post("/control/log/get-log", url.Values{"action": {"export"}}); l["count"] != float64(4) {
+		t.Fatalf("выгрузки в журнале: %+v", l)
 	}
 
 	// права: дать Анне «Пользователи» — откроется только этот раздел

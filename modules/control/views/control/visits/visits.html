@@ -1,0 +1,152 @@
+{{.View.SetTitle "Гости"}}
+
+<section style="padding-top: 16px;">
+    <h4 style="margin:0;">За период
+        <select id="period" class="form-control" style="display:inline-block;width:auto;height:30px;padding:2px 6px;font-size:13px;">
+            <option value="1h">час</option>
+            <option value="24h" selected>сутки</option>
+            <option value="7d">7 дней</option>
+            <option value="30d">30 дней</option>
+        </select></h4>
+    <div class="dash-cards" id="summary_result"><p style="color:#999;">Загрузка...</p></div>
+</section>
+
+<section style="min-height: 700px;">
+    <ul class="nav-tabs-si" id="visits-tabs">
+        <li class="active" data-tab="tab-visitors"><a href="#">Кто смотрит больше всех</a></li>
+        <li data-tab="tab-visited"><a href="#">Кого смотрят</a></li>
+        <li data-tab="tab-feed"><a href="#">Лента просмотров</a></li>
+    </ul>
+
+    <div class="tab__content active" id="tab-visitors">
+        <div style="margin:12px 0;"><label style="font-size:13px;"><input type="checkbox" class="with-banned" value="1"> с заблокированными</label>
+            <span class="am-sub" style="margin-left:12px;">Всего: <b class="visitors-count">0</b></span></div>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Кто</th><th class="text-right">Анкет за период</th><th class="text-right">За последний час</th><th class="text-right">Смотрели его</th><th>Последний просмотр</th><th>Регистрация</th></tr></thead>
+            <tbody id="visitors_result"></tbody>
+        </table>
+        <p class="am-sub" style="margin-top:10px;">Сотни анкет за час у одного человека — похоже на бота или сбор анкет. Решение — в карточке пользователя.</p>
+    </div>
+
+    <div class="tab__content" id="tab-visited" style="display:none;">
+        <div style="margin:12px 0;"><label style="font-size:13px;"><input type="checkbox" class="with-banned" value="1"> с заблокированными</label>
+            <span class="am-sub" style="margin-left:12px;">Всего: <b class="visited-count">0</b></span></div>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Чья анкета</th><th class="text-right">Гостей за период</th><th class="text-right">За последний час</th><th class="text-right">Сам смотрел</th><th>Последний гость</th><th>Регистрация</th></tr></thead>
+            <tbody id="visited_result"></tbody>
+        </table>
+    </div>
+
+    <div class="tab__content" id="tab-feed" style="display:none;">
+        <form id="feed_filters" class="am-filters" autocomplete="off" style="margin:12px 0;">
+            <div class="form-group am-narrow" style="width:110px;">
+                <label>Пользователь #</label>
+                <input name="uid" type="text" class="form-control" placeholder="id">
+            </div>
+            <div class="form-group">
+                <label>Направление</label>
+                <select name="dir" class="form-control">
+                    <option value="">Его просмотры и его гости</option>
+                    <option value="out">Кого смотрел он</option>
+                    <option value="in">Кто смотрел его</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>За</label>
+                <select name="period" class="form-control">
+                    <option value="">Всё время</option>
+                    <option value="1h">Час</option>
+                    <option value="24h">Сутки</option>
+                    <option value="7d">7 дней</option>
+                </select>
+            </div>
+            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div style="height:32px;line-height:32px;">Просмотров: <b class="feed-count">0</b></div></div>
+        </form>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Когда</th><th>Кто смотрел</th><th>Чью анкету</th></tr></thead>
+            <tbody id="feed_result"></tbody>
+        </table>
+    </div>
+    <p class="am-sub" style="margin-top:10px;">Повторный просмотр той же анкеты не добавляет строку, а обновляет время — поэтому «за период» значит «разных анкет, последний раз открытых в этот период».</p>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var lists = {};
+    function num(v) { return String(parseInt(v) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+    function card(title, value, sub) {
+        return '<div class="dash-card"><div class="dash-card-title">' + title + '</div><div class="dash-card-value">' + value + '</div>' +
+            (sub ? '<div class="dash-card-sub">' + sub + '</div>' : '') + '</div>';
+    }
+    function top_list(mode) {
+        return scroll_list({
+            url: '/control/visits/get-top', tbody: '#' + mode + '_result', cols: 6, count: '.' + mode + '-count',
+            data: function () { return { mode: mode, period: $('#period').val(), banned: $('.with-banned').is(':checked') ? 1 : '' }; },
+            row: function (v) {
+                var sub = (GENDER_ICON[v.gender] || '') + ' ' + (age_of(v.birthdate) || '') + (v.city ? ' · ' + esc(v.city) : '') +
+                    (parseInt(v.reports) ? ' · <span style="color:#e55353;">жалоб: ' + num(v.reports) + '</span>' : '');
+                return '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned, sub) + '</td>' +
+                    '<td class="text-right"><b>' + num(v.n) + '</b></td><td class="text-right">' + (parseInt(v.n_hour) >= 100 ? pill(num(v.n_hour), 'red') : num(v.n_hour)) + '</td>' +
+                    '<td class="text-right">' + num(v.reverse_total) + '</td><td style="white-space:nowrap;">' + ago(v.last_at) + '</td>' +
+                    '<td style="white-space:nowrap;">' + dt(v.created_at, 'DD.MM.YYYY') + '</td></tr>';
+            }
+        });
+    }
+
+    $(function () {
+        lists.visitors = top_list('visitors');
+        lists.visited = top_list('visited');
+        lists.feed = scroll_list({
+            url: '/control/visits/get-feed', tbody: '#feed_result', cols: 3, count: '.feed-count',
+            data: function () { return form_data('#feed_filters'); },
+            row: function (v) {
+                return '<tr><td style="white-space:nowrap;">' + dt(v.visited_at, 'DD.MM HH:mm:ss') + '</td>' +
+                    '<td>' + user_cell(v.visitor_id, v.visitor_name, v.visitor_photo, v.visitor_banned) + '</td>' +
+                    '<td>' + user_cell(v.visited_id, v.target_name, v.target_photo, v.target_banned) + '</td></tr>';
+            }
+        });
+
+        var q = new URLSearchParams(location.search);
+        if (q.get('uid')) $('#feed_filters [name=uid]').val(q.get('uid'));
+
+        $('#visits-tabs li').on('click', function (e) {
+            e.preventDefault();
+            var tab = $(this).data('tab');
+            $.each(lists, function (k, l) { l.stop(); });
+            $('#visits-tabs li').removeClass('active');
+            $(this).addClass('active');
+            $('#tab-visitors, #tab-visited, #tab-feed').hide();
+            $('#' + tab).show();
+            history.replaceState(null, '', location.search + '#' + tab);
+            current().reload();
+        });
+
+        var timer = null;
+        $('.with-banned').on('change', function () { $('.with-banned').prop('checked', this.checked); current().reload(); });
+        $('#feed_filters').on('change', 'select', function () { lists.feed.reload(); });
+        $('#feed_filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(lists.feed.reload, 400); });
+        $('form').on('submit', function (e) { e.preventDefault(); });
+        $('#period').on('change', function () { summary(); current().reload(); });
+
+        summary();
+        if (location.hash && $('#visits-tabs li[data-tab="' + location.hash.substr(1) + '"]').length) {
+            $('#visits-tabs li[data-tab="' + location.hash.substr(1) + '"]').click();
+        } else lists.visitors.reload();
+    });
+
+    function current() {
+        var tab = $('#visits-tabs li.active').data('tab');
+        return tab === 'tab-feed' ? lists.feed : (tab === 'tab-visited' ? lists.visited : lists.visitors);
+    }
+
+    function summary() {
+        post('/control/visits/get-summary', { period: $('#period').val() }, function (r) {
+            var s = r.summary || {};
+            $('#summary_result').html(
+                card('Просмотры анкет', num(s.visits), 'за последний час: ' + num(s.last_hour)) +
+                card('Смотрели', num(s.visitors), 'человек открывали анкеты') +
+                card('Анкет посмотрели', num(s.visited), 'разных анкет') +
+                card('Рекорд у одного', num(r.top), 'анкет за период', r.top >= 300)
+            );
+        });
+    }
+</script>

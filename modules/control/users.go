@@ -38,6 +38,23 @@ func (c *UsersController) ActionView() error {
 func (c *UsersController) ActionGetUsers() error {
 	res := web.M{}
 	page := max(1, c.PostInt("page", 1))
+	q := c.usersQuery()
+
+	p, err := paginate(q, page, 50)
+	if err != nil {
+		app.Log.Error("control: список пользователей", "err", err)
+		res["status"] = 200
+		res["items"] = db.Rows{}
+		return c.Json(res)
+	}
+	res["status"] = 200
+	res["items"] = prepare(p.Items)
+	res["count"] = p.Total
+	return c.Json(res)
+}
+
+// usersQuery — выборка списка с фильтрами из POST (общая для списка и выгрузки CSV)
+func (c *UsersController) usersQuery() *db.Query {
 	now := time.Now().UTC()
 
 	q := app.Db.Query().
@@ -128,18 +145,19 @@ func (c *UsersController) ActionGetUsers() error {
 	default:
 		q.OrderBy("u.id DESC")
 	}
+	return q
+}
 
-	p, err := paginate(q, page, 50)
-	if err != nil {
-		app.Log.Error("control: список пользователей", "err", err)
-		res["status"] = 200
-		res["items"] = db.Rows{}
-		return c.Json(res)
-	}
-	res["status"] = 200
-	res["items"] = prepare(p.Items)
-	res["count"] = p.Total
-	return c.Json(res)
+// Выгрузка CSV по текущим фильтрам списка
+func (c *UsersController) ActionExport() error {
+	return csvExport(c.Context, "users", c.usersQuery(), [][2]string{
+		{"id", "#"}, {"name", "Имя"}, {"email", "Почта"}, {"gender", "Пол"}, {"birthdate", "Дата рождения"}, {"city", "Город"},
+		{"onboarded", "Анкета заполнена"}, {"verified", "Верификация (0 нет, 1 на проверке, 2 да)"}, {"premium_until", "Premium до"},
+		{"banned", "Заблокирован"}, {"ban_reason", "Причина блокировки"}, {"invisible", "Невидимка"},
+		{"photos_count", "Фото"}, {"likes_count", "Симпатий получено"}, {"matches_count", "Пар"}, {"reports_count", "Жалоб"},
+		{"created_at", "Регистрация"}, {"last_seen", "Был в сети"},
+	}, "search", "status", "onboarded", "gender", "verified", "premium", "city", "intent", "age_from", "age_to",
+		"created_from", "created_to", "seen", "photos", "reported", "app", "invisible", "sort")
 }
 
 // Карточка: анкета, фото, счётчики активности, права в админке

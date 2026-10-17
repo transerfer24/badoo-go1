@@ -1,0 +1,173 @@
+{{.View.SetTitle "Воронка и удержание"}}
+
+<section style="padding-top: 16px;">
+    <form id="filters" class="am-filters" autocomplete="off">
+        <div class="form-group">
+            <label>Регистрация с</label>
+            <input name="from" type="date" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>по</label>
+            <input name="to" type="date" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>Быстро</label>
+            <select class="form-control" id="quick">
+                <option value="">—</option>
+                <option value="7">7 дней</option>
+                <option value="30">30 дней</option>
+                <option value="90">90 дней</option>
+                <option value="365">Год</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Пол</label>
+            <select name="gender" class="form-control">
+                <option value="">Все</option>
+                <option value="m">Мужчины</option>
+                <option value="f">Женщины</option>
+                <option value="x">Небинарные</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Город</label>
+            <select name="city" class="form-control">
+                <option value="">Все</option>
+                {{range .cities}}<option value="{{.Name}}">{{.Name}}</option>{{end}}
+            </select>
+        </div>
+        <div class="form-group" style="min-width:auto;"><label>&nbsp;</label>
+            <button class="btn btn--secondary btn--sm" type="button" id="refresh-btn"><i class="fa fa-refresh"></i> Обновить</button>
+        </div>
+    </form>
+</section>
+
+<section>
+    <h4>Воронка <span class="am-sub" id="funnel_title" style="font-weight:400;"></span></h4>
+    <div id="funnel_result"><p style="color:#999;">Загрузка...</p></div>
+    <div class="dash-cards" id="funnel_extra"></div>
+    <p class="am-sub" style="margin-top:10px;">Когорта — кто зарегистрировался в выбранные дни (с фильтром по полу и городу). Шаг засчитывается,
+        если это было хоть раз за всё время. Справа — доля от всех зарегистрированных и переход с прошлого шага.</p>
+</section>
+
+<section>
+    <h4>Активность за период <span class="am-sub" style="font-weight:400;">все пользователи, не только когорта</span></h4>
+    <div class="dash-cards" id="activity_result"></div>
+    <div class="dash-grid" style="margin-top:16px;">
+        <div><h5>Голоса по часам</h5><div id="hours_votes"></div></div>
+        <div><h5>Сообщения по часам</h5><div id="hours_messages"></div></div>
+        <div><h5>Пары по часам</h5><div id="hours_matches"></div></div>
+    </div>
+    <p class="am-sub" id="tz_note" style="margin-top:6px;"></p>
+</section>
+
+<section style="min-height: 400px;">
+    <h4>Удержание по неделям регистрации</h4>
+    <table class="border--round table--alternate-row am-retention">
+        <thead><tr><th>Неделя</th><th class="text-right">Новых</th><th class="text-center">Через 1 день</th><th class="text-center">Через 7 дней</th><th class="text-center">Через 14 дней</th><th class="text-center">Через 30 дней</th></tr></thead>
+        <tbody id="retention_result"></tbody>
+    </table>
+    <p class="am-sub" style="margin-top:10px;">Доля тех, кто был в сети позже, чем через N дней после регистрации (по времени последнего захода — истории визитов нет).
+        Пол и город — из фильтра выше, даты не влияют. «—» — когорта ещё не прожила столько дней.</p>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var req = null;
+    $(function () {
+        filters_from_url('#filters');
+        if (!$('[name=from]').val()) set_quick(30);
+        $('#quick').on('change', function () { if (this.value) { set_quick(parseInt(this.value)); load(); } });
+        $('#filters').on('change', 'input, select[name]', load);
+        $('#refresh-btn').on('click', load);
+        $('#filters').on('submit', function (e) { e.preventDefault(); });
+        var off = moment().utcOffset() / 60;
+        $('#tz_note').text('Часы — в поясе вашего браузера (UTC' + (off >= 0 ? '+' : '') + off + ').');
+        load();
+    });
+
+    function set_quick(days) {
+        $('[name=to]').val(moment().format('YYYY-MM-DD'));
+        $('[name=from]').val(moment().subtract(days - 1, 'days').format('YYYY-MM-DD'));
+    }
+
+    function num(v) { return String(parseInt(v) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+    function pct(a, b) { a = parseInt(a) || 0; b = parseInt(b) || 0; return b > 0 ? Math.round(a / b * 1000) / 10 + '%' : '—'; }
+
+    function card(title, value, sub) {
+        return '<div class="dash-card"><div class="dash-card-title">' + title + '</div><div class="dash-card-value">' + value + '</div>' +
+            (sub ? '<div class="dash-card-sub">' + sub + '</div>' : '') + '</div>';
+    }
+
+    function load() {
+        var d = form_data('#filters');
+        filters_to_url(d);
+        if (req) req.abort();
+        req = post('/control/analytics/get-funnel', d, render);
+    }
+
+    function render(r) {
+        var f = r.funnel || {}, a = r.activity || {}, total = parseInt(f.registered) || 0;
+        $('#funnel_title').text(moment(r.from).format('DD.MM.YYYY') + ' — ' + moment(r.to).format('DD.MM.YYYY'));
+
+        var steps = [
+            ['Зарегистрировались', f.registered], ['Заполнили анкету', f.onboarded], ['Загрузили фото', f.photo],
+            ['Поставили лайк', f.liked], ['Получили лайк', f.got_like], ['Получили пару', f.matched],
+            ['Написали сообщение', f.wrote], ['Переписка в обе стороны', f.dialog]
+        ];
+        var html = '', prev = total;
+        $.each(steps, function (i, s) {
+            var n = parseInt(s[1]) || 0, w = total > 0 ? Math.max(0.5, n / total * 100) : 0;
+            html += '<div class="am-funnel-row"><div class="am-funnel-label">' + s[0] + '</div>' +
+                '<div class="am-funnel-track"><div class="am-funnel-bar" style="width:' + w + '%;"></div></div>' +
+                '<div class="am-funnel-num">' + num(n) + '</div>' +
+                '<div class="am-funnel-pct"><b>' + pct(n, total) + '</b>' + (i ? '<span class="am-sub"> ← ' + pct(n, prev) + '</span>' : '') + '</div></div>';
+            prev = n;
+        });
+        $('#funnel_result').html(total ? html : '<p style="color:#999;">За эти дни никто не зарегистрировался</p>');
+        $('#funnel_extra').html(
+            card('Верифицированы', num(f.verified), pct(f.verified, total) + ' когорты') +
+            card('Брали Premium', num(f.premium), pct(f.premium, total) + ' когорты') +
+            card('Заблокированы', num(f.banned), pct(f.banned, total) + ' когорты')
+        );
+
+        $('#activity_result').html(
+            card('Голоса', num(a.votes), '❤ ' + num(a.likes) + ' (' + pct(a.likes, a.votes) + ') · голосовали ' + num(a.voters) + ' чел.') +
+            card('Взаимность лайков', pct(a.mutual, a.likes), num(a.mutual) + ' из ' + num(a.likes) + ' лайков взаимны') +
+            card('Пары', num(a.matches), a.likes > 0 ? 'одна пара на ' + Math.round(a.likes / Math.max(1, a.matches)) + ' лайков' : '') +
+            card('Сообщения', num(a.messages), 'в ' + num(a.chats) + ' диалогах · писали ' + num(a.writers) + ' чел.')
+        );
+
+        hour_bars('#hours_votes', r.hours.votes, '#321fdb');
+        hour_bars('#hours_messages', r.hours.messages, '#2eb85c');
+        hour_bars('#hours_matches', r.hours.matches, '#e83e8c');
+
+        var rows = '';
+        $.each(r.retention || [], function (i, w) {
+            rows += '<tr><td style="white-space:nowrap;">' + moment(w.week).format('DD.MM') + ' — ' + moment(w.week).add(6, 'days').format('DD.MM') + '</td>' +
+                '<td class="text-right">' + num(w.total) + '</td>';
+            for (var k = 0; k < 4; k++) rows += '<td class="text-center">' + ret_cell(w.alive[k], w.ready[k]) + '</td>';
+            rows += '</tr>';
+        });
+        $('#retention_result').html(rows || empty_row(6));
+    }
+
+    // ячейка удержания: доля с подложкой по силе
+    function ret_cell(alive, ready) {
+        if (!parseInt(ready)) return '<span class="am-sub">—</span>';
+        var p = alive / ready;
+        return '<span class="am-ret" style="background:rgba(50,31,219,' + (0.08 + p * 0.6).toFixed(2) + ');' + (p > 0.5 ? 'color:#fff;' : '') + '" title="' +
+            alive + ' из ' + ready + '">' + Math.round(p * 100) + '%</span>';
+    }
+
+    // 24 столбца по часам; часы приходят в UTC — сдвигаем в пояс браузера
+    function hour_bars(el, rows, color) {
+        var off = Math.round(moment().utcOffset() / 60), n = [], max = 1, html = '';
+        for (var i = 0; i < 24; i++) n.push(0);
+        $.each(rows || [], function (i, r) { var h = (parseInt(r.h, 10) + off + 24) % 24; if (!isNaN(h)) n[h] += parseInt(r.n) || 0; });
+        $.each(n, function (h, v) { if (v > max) max = v; });
+        $.each(n, function (h, v) {
+            html += '<div class="am-bar" title="' + (h < 10 ? '0' : '') + h + ':00 — ' + v + '"><div style="height:' + Math.max(2, Math.round(v / max * 100)) + '%;background:' + color + ';"></div></div>';
+        });
+        $(el).html('<div class="am-bars">' + html + '</div><div class="am-bars-legend"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>');
+    }
+</script>

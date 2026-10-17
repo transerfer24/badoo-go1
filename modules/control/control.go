@@ -99,6 +99,7 @@ var icons = map[string]string{
 	"index": "fa-dashboard", "users": "fa-users", "chats": "fa-comments", "meetups": "fa-calendar",
 	"reports": "fa-flag", "verification": "fa-check-circle", "photos": "fa-picture-o",
 	"log": "fa-history", "permissions": "fa-key",
+	"analytics": "fa-line-chart", "votes": "fa-heart", "visits": "fa-eye", "sessions": "fa-mobile", "system": "fa-server",
 }
 
 // Badges — счётчики очередей модерации в меню (у пункта и у его группы): новые жалобы, селфи на проверке.
@@ -224,6 +225,55 @@ func prepareRow(r db.Row) db.Row {
 		}
 	}
 	return r
+}
+
+// exportLimit — потолок строк одной выгрузки CSV
+const exportLimit = 50000
+
+/*
+csvExport — выборка списка → CSV для Excel (BOM, разделитель — запятая). cols — {колонка, заголовок}; даты —
+«02.01.2006 15:04» в UTC. filters — имена полей POST, которые попадут в журнал: в выгрузках почты людей, поэтому
+каждая пишется в control_log (кто, что, сколько строк, с какими фильтрами).
+*/
+func csvExport(c *web.Context, name string, q *db.Query, cols [][2]string, filters ...string) error {
+	rows, err := q.Limit(exportLimit).All()
+	if err != nil {
+		app.Log.Error("control: выгрузка "+name, "err", err)
+		return c.Json(web.M{"status": 500, "errors": web.M{"modal_message": "Не удалось выгрузить"}})
+	}
+	header := make([]string, len(cols))
+	for i, col := range cols {
+		header[i] = col[1]
+	}
+	out := make([][]any, 0, len(rows))
+	for _, r := range rows {
+		line := make([]any, len(cols))
+		for i, col := range cols {
+			k := col[0]
+			if strings.HasSuffix(k, "_at") || k == "last_seen" || k == "premium_until" {
+				if t := r.Time(k); !t.IsZero() {
+					line[i] = t.UTC().Format("02.01.2006 15:04")
+				} else {
+					line[i] = ""
+				}
+				continue
+			}
+			line[i] = r.Str(k)
+		}
+		out = append(out, line)
+	}
+	used := []string{}
+	for _, f := range filters {
+		if v := strings.TrimSpace(c.Post(f)); v != "" {
+			used = append(used, f+"="+v)
+		}
+	}
+	details := name + ": " + strconv.Itoa(len(out)) + " строк"
+	if len(used) > 0 {
+		details += " · " + strings.Join(used, ", ")
+	}
+	logAction(c, 0, "export", details)
+	return c.Csv(name+"-"+time.Now().UTC().Format("2006-01-02-1504")+".csv", header, out)
 }
 
 // since — время «N назад» для фильтров вида period=24h.

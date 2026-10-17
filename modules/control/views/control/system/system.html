@@ -1,0 +1,160 @@
+{{.View.SetTitle "Состояние системы"}}
+
+<section style="padding-top: 16px;">
+    <div class="row">
+        <div class="col-md-8"><h4 style="margin:0;">Состояние <span id="health"></span></h4></div>
+        <div class="col-md-4 text-right"><button class="btn btn--secondary btn--sm" id="refresh-btn"><i class="fa fa-refresh"></i> Обновить</button></div>
+    </div>
+    <div class="dash-cards" id="cards_result"><p style="color:#999;">Загрузка...</p></div>
+</section>
+
+<div class="dash-grid">
+    <section>
+        <h4>Сборка и процесс</h4>
+        <table class="border--round am-kv"><tbody id="build_result"></tbody></table>
+        <h4 style="margin-top:24px;">Интеграции</h4>
+        <table class="border--round table--alternate-row"><tbody id="config_result"></tbody></table>
+        <p class="am-sub" style="margin-top:6px;">Только «включено / нет» — сами ключи здесь не показываются.</p>
+    </section>
+    <section>
+        <h4>База</h4>
+        <table class="border--round am-kv"><tbody id="db_result"></tbody></table>
+        <h4 style="margin-top:24px;">Строк в таблицах</h4>
+        <table class="border--round table--alternate-row"><tbody id="tables_result"></tbody></table>
+    </section>
+    <section>
+        <h4>Миграции</h4>
+        <div id="pending_result"></div>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Последние применённые</th><th>Когда</th></tr></thead>
+            <tbody id="migrations_result"></tbody>
+        </table>
+        <h4 style="margin-top:24px;">Очередь задач</h4>
+        <div id="queue_result"></div>
+    </section>
+</div>
+
+{{if .is_super}}
+<section style="margin-top:16px;">
+    <form id="log_filters" class="am-filters" autocomplete="off" style="margin-bottom:10px;">
+        <div class="form-group">
+            <label>Лог</label>
+            <select name="name" class="form-control">
+                <option value="web">web — сайт и API</option>
+                <option value="worker">worker — очередь (push)</option>
+                <option value="cron">cron — задачи по расписанию</option>
+            </select>
+        </div>
+        <div class="form-group am-narrow">
+            <label>Строк</label>
+            <select name="lines" class="form-control">
+                <option>100</option><option selected>200</option><option>500</option><option>1000</option>
+            </select>
+        </div>
+        <div class="form-group" style="min-width:auto;"><label>&nbsp;</label>
+            <label style="text-transform:none;font-weight:400;font-size:13px;height:32px;line-height:32px;"><input type="checkbox" name="errors" value="1"> только ошибки и предупреждения</label>
+        </div>
+        <div class="form-group" style="min-width:auto;"><label>&nbsp;</label>
+            <button class="btn btn--secondary btn--sm" type="button" id="log-btn"><i class="fa fa-refresh"></i> Показать</button>
+        </div>
+        <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div class="am-sub" style="height:32px;line-height:32px;" id="log_meta"></div></div>
+    </form>
+    <pre class="am-log" id="log_result">Загрузка...</pre>
+</section>
+{{end}}
+
+<script nonce="{{.Nonce}}">
+    function num(v) { return String(parseInt(v) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+    function mb(v) { return (parseInt(v) / 1048576).toFixed(1) + ' МБ'; }
+    function card(title, value, sub, warn) {
+        return '<div class="dash-card"><div class="dash-card-title">' + title + '</div><div class="dash-card-value' + (warn ? ' warn' : '') + '">' + value + '</div>' +
+            (sub ? '<div class="dash-card-sub">' + sub + '</div>' : '') + '</div>';
+    }
+    function kv(k, v) { return '<tr><td>' + k + '</td><td>' + v + '</td></tr>'; }
+    function uptime(s) {
+        s = parseInt(s) || 0;
+        var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+        return (d ? d + ' д ' : '') + (d || h ? h + ' ч ' : '') + m + ' мин';
+    }
+
+    $(function () {
+        load();
+        $('#refresh-btn').on('click', load);
+        if ($('#log_result').length) {
+            load_log();
+            $('#log-btn').on('click', load_log);
+            $('#log_filters').on('change', 'select, input', load_log);
+            $('#log_filters').on('submit', function (e) { e.preventDefault(); });
+        }
+    });
+
+    function load() {
+        post('/control/system/get-info', {}, function (r) {
+            var b = r.build || {}, p = r.process || {}, d = r.db || {}, m = r.migrations || {}, q = r.queue;
+            var pending = (m.pending || []).length, qs = q ? q.stats : null;
+            $('#health').html(d.ok && !pending ? pill('всё в порядке', 'green') : pill('есть проблемы', 'red'));
+
+            $('#cards_result').html(
+                card('Работает', uptime(p.uptime), 'с ' + dt(p.started)) +
+                card('База', d.ok ? d.ping_ms + ' мс' : 'нет связи', esc(d.driver) + ' ' + esc(d.version || ''), !d.ok) +
+                card('Миграции', pending ? 'не применены: ' + pending : 'применены', '', pending > 0) +
+                (qs ? card('Очередь', num(qs.waiting), 'ждут · упали за сутки: ' + num(qs.failed_day) + ' · сделано: ' + num(qs.done_day), qs.failed_day > 0) : '')
+            );
+
+            $('#build_result').html(
+                kv('Коммит', b.revision ? '<code>' + esc(b.revision) + '</code>' + (b.modified ? ' ' + pill('с незакоммиченными правками', 'yellow') : '') : '—') +
+                kv('Время коммита', b.vcs_time ? moment(b.vcs_time).format('DD.MM.YYYY HH:mm') : '—') +
+                kv('Ядро Go1', esc(b.core || '—')) +
+                kv('Go', esc(b.go) + ' · ' + esc(b.os)) +
+                kv('Процесс', 'pid ' + p.pid + ' · горутин ' + num(p.goroutines) + ' · CPU ' + p.cpu) +
+                kv('Память', mb(p.mem_alloc) + ' занято · ' + mb(p.mem_sys) + ' у системы · GC ' + num(p.gc))
+            );
+
+            var rows = '';
+            $.each(r.config || [], function (i, c) {
+                var st = c.on ? (c.warn_on ? pill('включено', 'yellow') : pill('включено', 'green')) : pill('нет', 'grey');
+                rows += '<tr><td>' + esc(c.name) + '</td><td class="text-right">' + st + '</td></tr>';
+            });
+            $('#config_result').html(rows);
+
+            $('#db_result').html(kv('Драйвер', esc(d.driver)) + kv('Версия', esc(d.version || '—')) + kv('Отклик', d.ok ? d.ping_ms + ' мс' : pill('нет связи', 'red')));
+            rows = '';
+            $.each(d.tables || [], function (i, t) { rows += '<tr><td><code>' + esc(t.name) + '</code></td><td class="text-right">' + num(t.rows) + '</td></tr>'; });
+            $('#tables_result').html(rows);
+
+            $('#pending_result').html(pending ? '<div class="am-ban-box">Есть в коде, но не применены: ' + $.map(m.pending, esc).join(', ') + '</div>' : '');
+            rows = '';
+            $.each(m.applied || [], function (i, v) {
+                rows += '<tr><td><code>' + esc(v.version) + '</code>' + (v.module !== 'app' ? ' <span class="am-sub">' + esc(v.module) + '</span>' : '') + '</td>' +
+                    '<td style="white-space:nowrap;">' + dt(v.apply_time) + '</td></tr>';
+            });
+            $('#migrations_result').html(rows || empty_row(2));
+
+            if (!q) { $('#queue_result').html('<p class="am-sub">Очередь не в БД (Redis) или ещё не создана.</p>'); return; }
+            var html = '<table class="border--round am-kv"><tbody>' + kv('Ждут', num(qs.waiting) + ' (выполняются: ' + num(qs.running) + ')') +
+                kv('Упали всего', num(qs.failed)) + kv('Упали за сутки', num(qs.failed_day)) + kv('Сделано за сутки', num(qs.done_day)) + '</tbody></table>';
+            if ((q.errors || []).length) {
+                html += '<h5 style="margin-top:14px;">Последние ошибки</h5><table class="border--round table--alternate-row"><tbody>';
+                $.each(q.errors, function (i, e) {
+                    html += '<tr><td style="white-space:nowrap;">' + dt(e.failed_at, 'DD.MM HH:mm') + '</td><td><b>' + esc(e.name) + '</b> <span class="am-sub">попыток ' + e.attempts + '</span><div class="am-sub" style="word-break:break-word;">' + esc(e.error) + '</div></td></tr>';
+                });
+                html += '</tbody></table>';
+            }
+            $('#queue_result').html(html);
+        });
+    }
+
+    function load_log() {
+        post('/control/system/get-log', form_data('#log_filters'), function (r) {
+            if (r.missing) {
+                $('#log_meta').text('');
+                $('#log_result').text('Файла ' + r.path + ' нет (локальный запуск пишет лог в консоль).');
+                return;
+            }
+            $('#log_meta').text(r.path + ' · ' + mb(r.size) + ' · изменён ' + moment.unix(r.modified).fromNow());
+            $('#log_result').text((r.lines || []).join('\n') || 'Пусто');
+            var el = $('#log_result')[0];
+            el.scrollTop = el.scrollHeight;
+        });
+    }
+</script>

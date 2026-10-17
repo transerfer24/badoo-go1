@@ -123,7 +123,7 @@
 </section>
 
 <section style="min-height: 700px;">
-    <h4 style="margin-bottom: 10px;">Пользователи (<span class="users-count">0</span>)</h4>
+    <h4 style="margin-bottom: 10px;">Пользователи (<span class="users-count">0</span>) <button type="button" class="btn btn--secondary btn--sm export-btn" style="float:right;" title="Выгрузить в CSV (Excel) по текущим фильтрам, до 50 000 строк"><i class="fa fa-download"></i> CSV</button></h4>
     <table class="border--round table--alternate-row">
         <thead>
         <tr>
@@ -150,6 +150,7 @@
             data: function () { var d = form_data('#filters'); filters_to_url(d); return d; },
             row: generate_user
         });
+        $('.export-btn').on('click', function () { export_csv('/control/users/export', form_data('#filters')); });
         list.reload();
 
         var timer = null;

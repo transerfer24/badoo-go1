@@ -1,0 +1,180 @@
+{{.View.SetTitle "Симпатии и антиспам"}}
+
+<section style="padding-top: 16px;">
+    <div class="row">
+        <div class="col-md-8"><h4 style="margin:0;">За период
+            <select id="period" class="form-control" style="display:inline-block;width:auto;height:30px;padding:2px 6px;font-size:13px;">
+                <option value="24h">сутки</option>
+                <option value="7d" selected>7 дней</option>
+                <option value="30d">30 дней</option>
+            </select></h4></div>
+    </div>
+    <div class="dash-cards" id="summary_result"><p style="color:#999;">Загрузка...</p></div>
+</section>
+
+<section style="min-height: 700px;">
+    <ul class="nav-tabs-si" id="votes-tabs">
+        <li class="active" data-tab="tab-suspects"><a href="#">Подозрительные <span class="suspects-count am-sub"></span></a></li>
+        <li data-tab="tab-feed"><a href="#">Лента голосов</a></li>
+    </ul>
+
+    <div class="tab__content active" id="tab-suspects">
+        <form id="suspects_filters" class="am-filters" autocomplete="off" style="margin:12px 0;">
+            <div class="form-group">
+                <label>Признак</label>
+                <select name="flag" class="form-control">
+                    <option value="">Все, кто много голосовал</option>
+                    <option value="all">Лайкает почти всех</option>
+                    <option value="nomutual">Ни одной взаимности</option>
+                    <option value="new">Новый аккаунт</option>
+                    <option value="reports">Есть жалобы</option>
+                </select>
+            </div>
+            <div class="form-group am-narrow">
+                <label>Голосов от</label>
+                <input name="min" type="number" min="1" class="form-control" value="30">
+            </div>
+            <div class="form-group">
+                <label>Сортировка</label>
+                <select name="sort" class="form-control">
+                    <option value="">Больше лайков</option>
+                    <option value="total">Больше голосов</option>
+                    <option value="rate">Выше доля лайков</option>
+                    <option value="mutual">Меньше взаимных</option>
+                    <option value="new">Новые аккаунты</option>
+                </select>
+            </div>
+            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label>
+                <label style="text-transform:none;font-weight:400;font-size:13px;height:32px;line-height:32px;"><input type="checkbox" name="banned" value="1"> с заблокированными</label>
+            </div>
+        </form>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Кто</th><th class="text-right">Голосов</th><th class="text-right">Лайков</th><th class="text-right">Доля лайков</th><th class="text-right">Взаимных</th><th class="text-right">Лайков ему</th><th>Признаки</th><th>Регистрация</th></tr></thead>
+            <tbody id="suspects_result"></tbody>
+        </table>
+        <p class="am-sub" style="margin-top:10px;">
+            «Лайкает почти всех» — от 50 голосов и не меньше 90% лайков. «Ни одной взаимности» — от 30 лайков и ни одного ответного.
+            «Новый аккаунт» — моложе 3 дней. Здесь ничего не меняется: заблокировать можно в карточке пользователя.
+        </p>
+    </div>
+
+    <div class="tab__content" id="tab-feed" style="display:none;">
+        <form id="feed_filters" class="am-filters" autocomplete="off" style="margin:12px 0;">
+            <div class="form-group am-narrow" style="width:110px;">
+                <label>Пользователь #</label>
+                <input name="uid" type="text" class="form-control" placeholder="id">
+            </div>
+            <div class="form-group">
+                <label>Направление</label>
+                <select name="dir" class="form-control">
+                    <option value="">От него и ему</option>
+                    <option value="out">Только от него</option>
+                    <option value="in">Только ему</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Голос</label>
+                <select name="liked" class="form-control">
+                    <option value="">Все</option>
+                    <option value="1">Лайки</option>
+                    <option value="0">Пропуски</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>За</label>
+                <select name="period" class="form-control">
+                    <option value="">Всё время</option>
+                    <option value="1h">Час</option>
+                    <option value="24h">Сутки</option>
+                    <option value="7d">7 дней</option>
+                </select>
+            </div>
+            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div style="height:32px;line-height:32px;">Голосов: <b class="feed-count">0</b></div></div>
+        </form>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Когда</th><th>Кто</th><th class="text-center">Голос</th><th>Кому</th><th>Его/её голос в ответ</th></tr></thead>
+            <tbody id="feed_result"></tbody>
+        </table>
+    </div>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var lists = {}, opened = {};
+    var FLAGS = { all: pill('лайкает почти всех', 'red'), nomutual: pill('ни одной взаимности', 'yellow'), 'new': pill('новый аккаунт', 'blue'), reports: pill('есть жалобы', 'red') };
+    function num(v) { return String(parseInt(v) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+    function pct(a, b) { a = parseInt(a) || 0; b = parseInt(b) || 0; return b > 0 ? Math.round(a / b * 100) + '%' : '—'; }
+    function card(title, value, sub) {
+        return '<div class="dash-card"><div class="dash-card-title">' + title + '</div><div class="dash-card-value">' + value + '</div>' +
+            (sub ? '<div class="dash-card-sub">' + sub + '</div>' : '') + '</div>';
+    }
+    function vote_icon(l) { return parseInt(l) ? '<span style="color:#e83e8c;" title="лайк">❤</span>' : '<span style="color:#9da5b1;" title="пропуск">✕</span>'; }
+
+    $(function () {
+        lists.suspects = scroll_list({
+            url: '/control/votes/get-suspects', tbody: '#suspects_result', cols: 8, count: '.suspects-count',
+            data: function () { return $.extend(form_data('#suspects_filters'), { period: $('#period').val() }); },
+            row: function (v) {
+                var flags = '';
+                $.each(v.flags || [], function (i, f) { flags += FLAGS[f] || ''; });
+                var sub = (GENDER_ICON[v.gender] || '') + ' ' + (age_of(v.birthdate) || '') + (v.city ? ' · ' + esc(v.city) : '');
+                return '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned, sub) + '</td>' +
+                    '<td class="text-right">' + num(v.total) + '</td><td class="text-right">' + num(v.likes) + '</td>' +
+                    '<td class="text-right">' + v.rate + '%</td><td class="text-right">' + num(v.mutual) + ' <span class="am-sub">(' + pct(v.mutual, v.likes) + ')</span></td>' +
+                    '<td class="text-right">' + num(v.likes_in) + '</td><td>' + (flags || '<span class="am-sub">—</span>') +
+                    (parseInt(v.reports) ? ' <a href="/control/reports?status=all&search=%23' + v.id + '" class="am-sub">' + num(v.reports) + ' жалоб</a>' : '') + '</td>' +
+                    '<td style="white-space:nowrap;">' + ago(v.created_at) + '</td></tr>';
+            }
+        });
+        lists.feed = scroll_list({
+            url: '/control/votes/get-feed', tbody: '#feed_result', cols: 5, count: '.feed-count',
+            data: function () { return form_data('#feed_filters'); },
+            row: function (v) {
+                // ответный голос того, кому голосовали
+                var back = v.back === null || v.back === undefined ? '<span class="am-sub">ещё не голосовал(а)</span>' :
+                    vote_icon(v.back) + (parseInt(v.back) && parseInt(v.liked) ? ' ' + pill('взаимно', 'green') : '');
+                return '<tr><td style="white-space:nowrap;">' + dt(v.created_at, 'DD.MM HH:mm:ss') + '</td>' +
+                    '<td>' + user_cell(v.voter_id, v.voter_name, v.voter_photo, v.voter_banned) + '</td>' +
+                    '<td class="text-center" style="font-size:16px;">' + vote_icon(v.liked) + '</td>' +
+                    '<td>' + user_cell(v.target_id, v.target_name, v.target_photo, v.target_banned) + '</td><td>' + back + '</td></tr>';
+            }
+        });
+
+        // адрес ?uid=5#tab-feed — сразу лента голосов человека (ссылка из карточки)
+        var q = new URLSearchParams(location.search);
+        if (q.get('uid')) $('#feed_filters [name=uid]').val(q.get('uid'));
+
+        $('#votes-tabs li').on('click', function (e) {
+            e.preventDefault();
+            var tab = $(this).data('tab');
+            $.each(lists, function (k, l) { l.stop(); });
+            $('#votes-tabs li').removeClass('active');
+            $(this).addClass('active');
+            $('#tab-suspects, #tab-feed').hide();
+            $('#' + tab).show();
+            history.replaceState(null, '', location.search + '#' + tab);
+            if (tab === 'tab-feed') lists.feed.reload(); else lists.suspects.reload();
+        });
+
+        var timer = null;
+        $('#suspects_filters').on('change', 'select, input', function () { lists.suspects.reload(); });
+        $('#feed_filters').on('change', 'select', function () { lists.feed.reload(); });
+        $('#feed_filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(lists.feed.reload, 400); });
+        $('form').on('submit', function (e) { e.preventDefault(); });
+        $('#period').on('change', function () { summary(); if ($('#tab-suspects').is(':visible')) lists.suspects.reload(); });
+
+        summary();
+        if (location.hash === '#tab-feed') $('#votes-tabs li[data-tab="tab-feed"]').click(); else lists.suspects.reload();
+    });
+
+    function summary() {
+        post('/control/votes/get-summary', { period: $('#period').val() }, function (r) {
+            var s = r.summary || {};
+            $('#summary_result').html(
+                card('Голоса', num(s.votes), '❤ ' + num(s.likes) + ' · ✕ ' + num(parseInt(s.votes) - parseInt(s.likes))) +
+                card('Доля лайков', pct(s.likes, s.votes), 'от всех голосов') +
+                card('Взаимность', pct(s.mutual, s.likes), num(s.mutual) + ' лайков взаимны') +
+                card('Голосовали', num(s.voters), 'за ' + num(s.targets) + ' анкет · рекорд: ' + num(r.top) + ' голосов у одного')
+            );
+        });
+    }
+</script>

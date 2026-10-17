@@ -254,6 +254,18 @@ func (c *LogController) ActionIndex() error {
 
 func (c *LogController) ActionGetLog() error {
 	res := web.M{}
+	q := c.logQuery()
+	p := mustPaginate(q, max(1, c.PostInt("page", 1)), 50)
+	res["status"] = 200
+	res["items"] = prepare(p.Items)
+	res["count"] = p.Total
+	res["admins"] = app.Db.CreateCommand(`SELECT DISTINCT l.admin_id AS id, a.name FROM {{control_log}} l
+		LEFT JOIN {{users}} a ON a.id = l.admin_id ORDER BY a.name`).MustAll()
+	return c.Json(res)
+}
+
+// logQuery — выборка журнала с фильтрами из POST (общая для списка и выгрузки CSV)
+func (c *LogController) logQuery() *db.Query {
 	q := app.Db.Query().
 		Select("l.id", "l.action", "l.details", "l.ip", "l.created_at", "l.admin_id", "a.name AS admin_name", "l.user_id", "u.name AS user_name").
 		From("{{control_log}} l").
@@ -270,11 +282,13 @@ func (c *LogController) ActionGetLog() error {
 		q.AndWhere(db.Raw("(l.details LIKE :s OR u.name LIKE :s OR l.user_id = :sid)", db.P{":s": "%" + s + "%", ":sid": id}))
 	}
 	q.OrderBy("l.id DESC")
-	p := mustPaginate(q, max(1, c.PostInt("page", 1)), 50)
-	res["status"] = 200
-	res["items"] = prepare(p.Items)
-	res["count"] = p.Total
-	res["admins"] = app.Db.CreateCommand(`SELECT DISTINCT l.admin_id AS id, a.name FROM {{control_log}} l
-		LEFT JOIN {{users}} a ON a.id = l.admin_id ORDER BY a.name`).MustAll()
-	return c.Json(res)
+	return q
+}
+
+// Выгрузка CSV по текущим фильтрам
+func (c *LogController) ActionExport() error {
+	return csvExport(c.Context, "control-log", c.logQuery(), [][2]string{
+		{"id", "#"}, {"created_at", "Когда"}, {"admin_id", "Админ #"}, {"admin_name", "Админ"}, {"action", "Действие"},
+		{"user_id", "Пользователь #"}, {"user_name", "Пользователь"}, {"details", "Подробности"}, {"ip", "IP"},
+	}, "action", "admin_id", "search")
 }

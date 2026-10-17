@@ -1,0 +1,165 @@
+{{.View.SetTitle "Входы и сессии"}}
+
+<section style="padding-top: 16px;">
+    <div class="dash-cards" id="stats_result"><p style="color:#999;">Загрузка...</p></div>
+    <div id="platforms_result" style="margin-top:12px;"></div>
+</section>
+
+<section style="min-height: 700px;">
+    <ul class="nav-tabs-si" id="sessions-tabs">
+        <li class="active" data-tab="tab-sessions"><a href="#">Сессии приложения</a></li>
+        <li data-tab="tab-flows"><a href="#">Попытки входа <span class="flows-count am-sub"></span></a></li>
+    </ul>
+
+    <div class="tab__content active" id="tab-sessions">
+        <form id="sessions_filters" class="am-filters" autocomplete="off" style="margin:12px 0;">
+            <div class="form-group am-wide">
+                <label>Поиск</label>
+                <input name="search" type="search" class="form-control" placeholder="Имя, почта или #id">
+            </div>
+            <div class="form-group">
+                <label>Платформа</label>
+                <select name="platform" class="form-control" id="platform_select"><option value="">Все</option></select>
+            </div>
+            <div class="form-group">
+                <label>Состояние</label>
+                <select name="state" class="form-control">
+                    <option value="active">Действуют</option>
+                    <option value="expired">Истекли</option>
+                    <option value="">Все</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Вход за</label>
+                <select name="period" class="form-control">
+                    <option value="">Всё время</option>
+                    <option value="1h">Час</option>
+                    <option value="24h">Сутки</option>
+                    <option value="7d">7 дней</option>
+                    <option value="30d">30 дней</option>
+                </select>
+            </div>
+            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div style="height:32px;line-height:32px;">Сессий: <b class="sessions-count">0</b></div></div>
+        </form>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Кто</th><th>Платформа</th><th>Токен</th><th>Вход</th><th>Действует до</th><th>Был в сети</th><th class="text-center">Действия</th></tr></thead>
+            <tbody id="sessions_result"></tbody>
+        </table>
+        <p class="am-sub" style="margin-top:10px;">«Завершить» — выход на одном устройстве: приложение там попросит войти заново. Выйти на всех устройствах — в карточке пользователя.</p>
+    </div>
+
+    <div class="tab__content" id="tab-flows" style="display:none;">
+        <form id="flows_filters" class="am-filters" autocomplete="off" style="margin:12px 0;">
+            <div class="form-group am-wide">
+                <label>Почта</label>
+                <input name="search" type="search" class="form-control" placeholder="Часть адреса">
+            </div>
+            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label>
+                <label style="text-transform:none;font-weight:400;font-size:13px;height:32px;line-height:32px;"><input type="checkbox" name="expired" value="1"> с просроченными</label>
+            </div>
+        </form>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Почта</th><th>Аккаунт</th><th>Шаг</th><th class="text-right">Попыток на почту</th><th>Код можно повторить</th><th>Попытка действует до</th></tr></thead>
+            <tbody id="flows_result"></tbody>
+        </table>
+        <p class="am-sub" style="margin-top:10px;">Незавершённые входы: человек ввёл почту, но ещё не вошёл. Завершённые и просроченные удаляются при следующих входах.
+            Много попыток на одну почту — человек не может войти (не приходит код, забыл пароль) или кто-то перебирает.</p>
+    </div>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var lists = {}, platformsLoaded = false;
+    var STEPS = { password: pill('ждём пароль', 'blue'), code: pill('ждём код из письма', 'yellow'), register: pill('регистрация', 'purple') };
+    function num(v) { return String(parseInt(v) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+    function card(title, value, sub) {
+        return '<div class="dash-card"><div class="dash-card-title">' + title + '</div><div class="dash-card-value">' + value + '</div>' +
+            (sub ? '<div class="dash-card-sub">' + sub + '</div>' : '') + '</div>';
+    }
+    function platform(p) { return p ? esc(p) : '<span class="am-sub">не указана</span>'; }
+
+    $(function () {
+        lists.sessions = scroll_list({
+            url: '/control/sessions/get-sessions', tbody: '#sessions_result', cols: 7, count: '.sessions-count',
+            data: function () { var d = form_data('#sessions_filters'); filters_to_url(d); return d; },
+            row: function (v) {
+                var active = parseInt(v.expires_at) * 1000 > Date.now();
+                var sub = esc(v.email || '') + (parseInt(v.user_sessions) > 1 ? ' · сессий: ' + num(v.user_sessions) : '');
+                return '<tr><td>' + user_cell(v.user_id, v.name, v.photo, v.banned, sub) + '</td><td>' + platform(v.platform) + '</td>' +
+                    '<td class="am-sub" style="font-family:monospace;">' + esc(v.token) + '…</td>' +
+                    '<td style="white-space:nowrap;">' + dt(v.created_at) + '</td>' +
+                    '<td style="white-space:nowrap;">' + (active ? dt(v.expires_at, 'DD.MM.YYYY') : pill('истекла', 'grey')) + '</td>' +
+                    '<td style="white-space:nowrap;">' + ago(v.last_seen) + '</td>' +
+                    '<td class="text-center"><button class="btn btn-outline-danger btn-sm end-btn" data-uid="' + v.user_id + '" data-key="' + esc(v.key) +
+                    '" data-name="' + esc(v.name || ('#' + v.user_id)) + '" data-platform="' + esc(v.platform || '') + '"><i class="fa fa-sign-out"></i> Завершить</button></td></tr>';
+            }
+        });
+        lists.flows = scroll_list({
+            url: '/control/sessions/get-flows', tbody: '#flows_result', cols: 6, count: '.flows-count',
+            data: function () { return form_data('#flows_filters'); },
+            row: function (v) {
+                var acc = parseInt(v.user_id) ? user_link(v.user_id, v.name, v.banned) : '<span class="am-sub">новый</span>';
+                var flags = (parseInt(v.local) ? ' ' + pill('локальный пароль', 'grey') : '') + (parseInt(v.require_invite) ? ' ' + pill('нужен инвайт', 'grey') : '');
+                var expired = parseInt(v.expires_ts) * 1000 <= Date.now();
+                return '<tr><td>' + esc(v.email) + '</td><td>' + acc + '</td><td>' + (STEPS[v.step] || esc(v.step)) + flags + '</td>' +
+                    '<td class="text-right">' + (parseInt(v.same_email) >= 3 ? pill(num(v.same_email), 'red') : num(v.same_email)) + '</td>' +
+                    '<td style="white-space:nowrap;">' + (parseInt(v.resend_ts) > 0 ? dt(v.resend_ts, 'DD.MM HH:mm:ss') : '—') + '</td>' +
+                    '<td style="white-space:nowrap;">' + (expired ? pill('просрочена', 'grey') : dt(v.expires_ts, 'DD.MM HH:mm')) + '</td></tr>';
+            }
+        });
+
+        filters_from_url('#sessions_filters');
+
+        $('#sessions-tabs li').on('click', function (e) {
+            e.preventDefault();
+            var tab = $(this).data('tab');
+            $.each(lists, function (k, l) { l.stop(); });
+            $('#sessions-tabs li').removeClass('active');
+            $(this).addClass('active');
+            $('#tab-sessions, #tab-flows').hide();
+            $('#' + tab).show();
+            if (tab === 'tab-flows') { history.replaceState(null, '', location.pathname + '#tab-flows'); lists.flows.reload(); }
+            else lists.sessions.reload();
+        });
+
+        var timer = null;
+        $('#sessions_filters').on('change', 'select', function () { lists.sessions.reload(); });
+        $('#sessions_filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(lists.sessions.reload, 400); });
+        $('#flows_filters').on('change', 'input[type=checkbox]', function () { lists.flows.reload(); });
+        $('#flows_filters').on('input', 'input[type=search]', function () { clearTimeout(timer); timer = setTimeout(lists.flows.reload, 400); });
+        $('form').on('submit', function (e) { e.preventDefault(); });
+
+        $(document).on('click', '.end-btn', function () {
+            var b = $(this);
+            confirm_action({ title: 'Завершить сессию?', danger: true, ok: 'Завершить',
+                message: esc(b.data('name')) + (b.data('platform') ? ' · ' + esc(b.data('platform')) : '') +
+                    '<br>Приложение на этом устройстве попросит войти заново. Остальные устройства не затронуты.' },
+                function () { post('/control/sessions/end', { uid: b.data('uid'), key: b.data('key') }, function () { message_ok('Сессия завершена'); b.closest('tr').remove(); stats(); }, b); });
+        });
+
+        stats();
+        if (location.hash === '#tab-flows') $('#sessions-tabs li[data-tab="tab-flows"]').click(); else lists.sessions.reload();
+    });
+
+    function stats() {
+        post('/control/sessions/get-stats', {}, function (r) {
+            var s = r.stats || {};
+            $('#stats_result').html(
+                card('Сессии приложения', num(s.active), 'действуют · у ' + num(s.users) + ' чел. · истекших ' + num(s.expired)) +
+                card('Новые входы', '+' + num(s.new_day), 'за сутки · +' + num(s.new_week) + ' за неделю') +
+                card('Push-токены', num(s.push), 'у ' + num(s.push_users) + ' чел.') +
+                card('Входят сейчас', num(s.flows), 'незавершённых попыток входа')
+            );
+            var rows = '';
+            $.each(r.platforms || [], function (i, p) {
+                rows += '<tr><td>' + platform(p.platform) + '</td><td class="text-right">' + num(p.sessions) + '</td><td class="text-right">' + num(p.users) + '</td><td class="text-right">' + num(p.push) + '</td></tr>';
+                if (!platformsLoaded) $('#platform_select').append('<option value="' + esc(p.platform) + '">' + esc(p.platform || 'не указана') + '</option>');
+            });
+            if (!platformsLoaded) {
+                platformsLoaded = true;
+                var cur = new URLSearchParams(location.search).get('platform');
+                if (cur) $('#platform_select').val(cur);
+            }
+            $('#platforms_result').html(rows ? '<table class="border--round table--alternate-row" style="max-width:560px;"><thead><tr><th>Платформа</th><th class="text-right">Сессий</th><th class="text-right">Людей</th><th class="text-right">Push-токенов</th></tr></thead><tbody>' + rows + '</tbody></table>' : '');
+        });
+    }
+</script>

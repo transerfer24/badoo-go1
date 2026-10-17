@@ -30,6 +30,25 @@ func (c *ReportsController) ActionIndex() error {
 
 func (c *ReportsController) ActionGetReports() error {
 	res := web.M{}
+	q := c.reportsQuery()
+
+	p, err := paginate(q, max(1, c.PostInt("page", 1)), 50)
+	if err != nil {
+		app.Log.Error("control: жалобы", "err", err)
+		res["status"] = 200
+		res["items"] = db.Rows{}
+		return c.Json(res)
+	}
+	res["status"] = 200
+	res["items"] = prepare(p.Items)
+	res["count"] = p.Total
+	res["counts"] = app.Db.CreateCommand(`SELECT COALESCE(SUM(status = 0), 0) AS new, COALESCE(SUM(status = 1), 0) AS resolved,
+		COALESCE(SUM(status = 2), 0) AS rejected FROM {{reports}}`).MustRow()
+	return c.Json(res)
+}
+
+// reportsQuery — выборка жалоб с фильтрами из POST (общая для списка и выгрузки CSV)
+func (c *ReportsController) reportsQuery() *db.Query {
 	q := app.Db.Query().
 		Select("r.id", "r.reason", "r.status", "r.created_at", "r.resolved_at",
 			"r.reporter_id", "a.name AS reporter_name",
@@ -56,20 +75,16 @@ func (c *ReportsController) ActionGetReports() error {
 	} else {
 		q.OrderBy("r.id DESC")
 	}
+	return q
+}
 
-	p, err := paginate(q, max(1, c.PostInt("page", 1)), 50)
-	if err != nil {
-		app.Log.Error("control: жалобы", "err", err)
-		res["status"] = 200
-		res["items"] = db.Rows{}
-		return c.Json(res)
-	}
-	res["status"] = 200
-	res["items"] = prepare(p.Items)
-	res["count"] = p.Total
-	res["counts"] = app.Db.CreateCommand(`SELECT COALESCE(SUM(status = 0), 0) AS new, COALESCE(SUM(status = 1), 0) AS resolved,
-		COALESCE(SUM(status = 2), 0) AS rejected FROM {{reports}}`).MustRow()
-	return c.Json(res)
+// Выгрузка CSV по текущим фильтрам
+func (c *ReportsController) ActionExport() error {
+	return csvExport(c.Context, "reports", c.reportsQuery(), [][2]string{
+		{"id", "Жалоба"}, {"created_at", "Когда"}, {"status", "Статус (0 новая, 1 меры, 2 отклонена)"}, {"reason", "Причина"},
+		{"reported_id", "На кого #"}, {"reported_name", "На кого"}, {"reported_banned", "Заблокирован"}, {"reported_total", "Жалоб на него"},
+		{"reporter_id", "От кого #"}, {"reporter_name", "От кого"}, {"resolved_by_name", "Решил"}, {"resolved_at", "Когда решено"},
+	}, "status", "search", "sort")
 }
 
 // Решение: action = ban (заблокировать того, на кого жалуются) | reject (жалоба не подтвердилась).

@@ -137,6 +137,15 @@ function form_data(sel) {
     return d;
 }
 
+// выгрузка CSV: обычная отправка формы (файл скачивается, страница остаётся), data — фильтры списка
+function export_csv(url, data) {
+    var f = $('<form method="POST" style="display:none;"></form>').attr('action', url);
+    $.each($.extend({}, data || {}, { _csrf: $('meta[name="csrf-token"]').attr('content') }), function (k, v) {
+        if (v !== '' && v != null && k !== 'page') f.append($('<input type="hidden">').attr('name', k).val(v));
+    });
+    f.appendTo('body').submit().remove();
+}
+
 // фильтры ↔ адрес страницы (?status=banned&…): ссылка открывает тот же срез, «назад» работает
 function filters_to_url(d) {
     var q = [];
@@ -184,5 +193,6 @@ $(document).on('click', '.am-zoom', function (e) {
 var LOG_LABELS = { ban: pill('блокировка', 'red'), unban: pill('разблокировка', 'green'), verify: pill('верифицирован', 'green'), unverify: pill('верификация снята', 'yellow'),
     premium: pill('Premium', 'purple'), 'premium-off': pill('Premium снят', 'grey'), edit: pill('правка анкеты', 'blue'), 'photo-delete': pill('фото удалено', 'yellow'),
     logout: pill('выход везде', 'grey'), delete: pill('аккаунт удалён', 'red'), 'message-delete': pill('сообщение удалено', 'yellow'),
-    'reports-reject': pill('жалобы отклонены', 'grey'), 'report-reopen': pill('жалоба снова открыта', 'grey'), permission: pill('права', 'blue'), 'meetup-delete': pill('событие удалено', 'yellow'), section: pill('раздел', 'blue') };
+    'reports-reject': pill('жалобы отклонены', 'grey'), 'report-reopen': pill('жалоба снова открыта', 'grey'), permission: pill('права', 'blue'), 'meetup-delete': pill('событие удалено', 'yellow'), section: pill('раздел', 'blue'),
+    'session-end': pill('сессия завершена', 'grey'), export: pill('выгрузка CSV', 'blue') };
 function log_label(a) { return LOG_LABELS[a] || esc(a); }

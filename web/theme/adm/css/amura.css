@@ -81,3 +81,22 @@ a.am-banned { text-decoration: line-through; color: #e55353 !important; }
 .btn.btn-outline-danger:hover { background: #e55353; color: #fff; }
 .btn.btn-outline-danger:hover i { color: #fff !important; }
 .btn.btn-outline-secondary i { color: inherit !important; }
+
+/* Воронка и удержание (/control/analytics) */
+.am-funnel-row { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+.am-funnel-label { width: 230px; flex: 0 0 230px; font-size: 13px; }
+.am-funnel-track { flex: 1; position: relative; height: 24px; background: #eef0f3; border-radius: 4px; overflow: hidden; }
+.am-funnel-bar { height: 100%; background: #321fdb; opacity: .8; border-radius: 4px; }
+.am-funnel-num { width: 64px; flex: 0 0 64px; text-align: right; font-weight: 600; font-size: 13px; }
+.am-funnel-pct { width: 150px; flex: 0 0 150px; font-size: 13px; }
+.am-ret { display: inline-block; min-width: 52px; padding: 3px 6px; border-radius: 4px; font-weight: 600; font-size: 12px; }
+.am-flag { margin-right: 4px; }
+@media (max-width: 700px) {
+    .am-funnel-row { flex-wrap: wrap; gap: 4px; }
+    .am-funnel-label, .am-funnel-pct, .am-funnel-num { width: auto; flex: 1 1 auto; }
+    .am-funnel-track { flex: 1 1 100%; order: 3; }
+}
+.c-dark-theme .am-funnel-track { background: #2e3240; }
+
+/* Состояние системы: хвост лога */
+.am-log { max-height: 560px; overflow: auto; background: #1e2029; color: #d6d9e0; font-size: 12px; line-height: 1.45; padding: 12px 14px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
