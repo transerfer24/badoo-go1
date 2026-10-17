@@ -27,16 +27,16 @@
 
 <div class="dash-grid" style="margin-top:16px;">
     <section>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="am-list-head">
             <h4>Новые анкеты</h4><a class="btn btn--secondary btn--sm" href="/control/users">Все</a>
         </div>
         <table class="border--round table--alternate-row">
-            <thead><tr><th>Кто</th><th>Город</th><th>Статус</th><th>Регистрация</th></tr></thead>
-            <tbody id="last_result"><tr><td colspan="4" style="text-align:center;color:#999;">Загрузка...</td></tr></tbody>
+            <thead><tr><th>Кто</th><th>Статус</th><th>Регистрация</th></tr></thead>
+            <tbody id="last_result"><tr><td colspan="3" style="text-align:center;color:#999;">Загрузка...</td></tr></tbody>
         </table>
     </section>
     <section>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="am-list-head">
             <h4>Новые жалобы</h4><a class="btn btn--secondary btn--sm" href="/control/reports">Разобрать</a>
         </div>
         <table class="border--round table--alternate-row">
@@ -97,11 +97,13 @@ function get_info() {
 
         var rows = '';
         $.each(r.last || [], function (i, v) {
-            var sub = (GENDER_ICON[v.gender] || '') + ' ' + (age_of(v.birthdate) || '') + ' · ' + esc(v.email);
-            rows += '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned, sub) + '</td><td>' + esc(v.city || '—') + '</td>' +
+            // город — в подписи под именем: в узкой карточке дашборда четыре колонки не помещаются
+            var sub = (GENDER_ICON[v.gender] || '') + ' ' + (age_of(v.birthdate) || '') + (v.city ? ' · ' + esc(v.city) : '') +
+                '<div title="' + esc(v.email) + '" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(v.email) + '</div>';
+            rows += '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned, sub) + '</td>' +
                 '<td>' + user_badges(v) + '</td><td style="white-space:nowrap;">' + dt(v.created_at, 'DD.MM HH:mm') + '</td></tr>';
         });
-        $('#last_result').html(rows || empty_row(4));
+        $('#last_result').html(rows || empty_row(3));
 
         rows = '';
         $.each(r.reports || [], function (i, v) {

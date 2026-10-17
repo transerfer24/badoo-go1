@@ -196,3 +196,18 @@ var LOG_LABELS = { ban: pill('блокировка', 'red'), unban: pill('раз
     'reports-reject': pill('жалобы отклонены', 'grey'), 'report-reopen': pill('жалоба снова открыта', 'grey'), permission: pill('права', 'blue'), 'meetup-delete': pill('событие удалено', 'yellow'), section: pill('раздел', 'blue'),
     'session-end': pill('сессия завершена', 'grey'), export: pill('выгрузка CSV', 'blue') };
 function log_label(a) { return LOG_LABELS[a] || esc(a); }
+
+// Таблицы страницы — в .am-table-wrap (горизонтальная прокрутка внутри карточки на узком экране). Таблицы,
+// которые страница дорисовывает позже (сводки, логи), оборачиваются тем же наблюдателем.
+function wrap_tables(root) {
+    $(root || document).find('.c-main table').addBack('.c-main table').each(function () {
+        if (!$(this).parent().hasClass('am-table-wrap')) $(this).wrap('<div class="am-table-wrap"></div>');
+    });
+}
+$(function () {
+    wrap_tables();
+    var main = document.querySelector('.c-main');
+    if (main && window.MutationObserver) new MutationObserver(function (list) {
+        list.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1 && (n.tagName === 'TABLE' || n.querySelector('table'))) wrap_tables(n); }); });
+    }).observe(main, { childList: true, subtree: true });
+});

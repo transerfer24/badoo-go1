@@ -2,21 +2,24 @@
 
 <section style="padding-top: 16px;">
     <div class="am-chat-head">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <a href="/control/chats" class="btn btn--secondary btn--sm"><i class="fa fa-arrow-left"></i></a>
-            <div id="side_a"></div>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <a href="/control/chats" class="btn btn--secondary btn--sm" title="Ко всем диалогам"><i class="fa fa-arrow-left"></i></a>
+            <div><div class="am-side-label">Слева</div><div id="side_a"></div></div>
         </div>
         <div style="text-align:center;" id="pair_info"></div>
-        <div id="side_b"></div>
+        <div class="am-side-b"><div class="am-side-label">Справа</div><div id="side_b"></div></div>
     </div>
 </section>
 
-<section style="min-height: 600px;">
+<section>
     <div class="am-chat">
-        <div style="text-align:center;margin-bottom:10px;"><button class="btn btn--secondary btn--sm" id="more-btn" style="display:none;">Показать раньше</button></div>
-        <div id="messages"><p style="text-align:center;color:#999;">Загрузка...</p></div>
+        <div class="am-chat-box" id="chat_box">
+            <div style="text-align:center;margin:4px 0 10px;"><button class="btn btn--secondary btn--sm" id="more-btn" style="display:none;">Показать раньше</button></div>
+            <div id="messages"><p style="text-align:center;color:#999;">Загрузка...</p></div>
+        </div>
+        <p class="am-sub" style="text-align:center;margin-top:10px;">Админ видит переписку как есть: прочитанным ничего не отмечается.
+            Удалить сообщение — «удалить» рядом со временем (появляется при наведении).</p>
     </div>
-    <p style="font-size:12px;color:#768192;text-align:center;margin-top:16px;">Админ видит переписку как есть: прочитанным ничего не отмечается. Наведите на сообщение, чтобы удалить его.</p>
 </section>
 
 <script nonce="{{.Nonce}}">
@@ -39,29 +42,54 @@
         return user_cell(p['user_' + prefix], p[prefix + '_name'], p[prefix + '_photo'], p[prefix + '_banned'], sub);
     }
 
+    // «Сегодня», «Вчера» или дата — разделитель между днями
+    function day_label(ts) {
+        var d = moment.unix(ts);
+        if (d.isSame(moment(), 'day')) return 'Сегодня';
+        if (d.isSame(moment().subtract(1, 'day'), 'day')) return 'Вчера';
+        return d.format(d.isSame(moment(), 'year') ? 'D MMMM' : 'D MMMM YYYY');
+    }
+
+    function day_of(m) { return moment.unix(m.created_at).format('YYYY-MM-DD'); }
+
+    function render(items, p) {
+        var html = '', day = '';
+        $.each(items, function (i, m) {
+            if (day_of(m) !== day) { day = day_of(m); html += '<div class="am-day" data-day="' + day + '"><span>' + day_label(m.created_at) + '</span></div>'; }
+            var right = parseInt(m.sender_id) === parseInt(p.user_b);
+            html += '<div class="am-msg' + (right ? ' right' : '') + '" id="m' + m.id + '"><div class="am-msg-in">' +
+                '<div class="am-bubble">' + esc(m.body) + '</div>' +
+                '<div class="am-meta"><span>' + esc(right ? p.b_name : p.a_name) + ' · ' + dt(m.created_at, 'HH:mm') + '</span>' +
+                (parseInt(m.read_at) ? '<span title="Прочитано ' + dt(m.read_at) + '">✓✓</span>' : '') +
+                '<a href="#" class="am-del" data-id="' + m.id + '">удалить</a></div></div></div>';
+        });
+        return html;
+    }
+
     function load(before) {
         post('/control/chats/get-messages', { id: id, before: before }, function (r) {
-            var p = pair = r.pair;
+            var p = pair = r.pair, box = $('#chat_box')[0], items = r.items || [];
             $('#side_a').html(side('a', p));
             $('#side_b').html(side('b', p));
             $('#pair_info').html('<div style="font-size:13px;">Пара с ' + dt(p.created_at) + '</div><div class="am-sub">сообщений: ' + p.total + '</div>' +
                 (parseInt(p.blocked) ? pill('один заблокировал другого', 'red') : ''));
-            var html = '';
-            $.each(r.items || [], function (i, m) {
-                var right = parseInt(m.sender_id) === parseInt(p.user_b);
-                html += '<div class="am-msg' + (right ? ' right' : '') + '" id="m' + m.id + '"><div><div class="am-bubble">' + esc(m.body) +
-                    '<span class="am-del" data-id="' + m.id + '" title="Удалить"><i class="fa fa-times"></i></span></div>' +
-                    '<div class="am-meta"' + (right ? ' style="text-align:right;"' : '') + '>' + esc(right ? p.b_name : p.a_name) + ' · ' + dt(m.created_at) +
-                    (parseInt(m.read_at) ? ' · прочитано' : '') + '</div></div></div>';
-            });
-            if (before) $('#messages').prepend(html);
-            else $('#messages').html(html || '<p style="text-align:center;color:#999;">Сообщений нет</p>');
-            if (r.items && r.items.length) oldest = r.items[0].id;
+
+            if (before) {
+                // подгрузка раньше: разделитель дня на стыке не дублируем, читаемое место не сдвигаем
+                var h = box.scrollHeight;
+                if (items.length) $('#messages .am-day').first().filter('[data-day="' + day_of(items[items.length - 1]) + '"]').remove();
+                $('#messages').prepend(render(items, p));
+                box.scrollTop += box.scrollHeight - h;
+            } else {
+                $('#messages').html(render(items, p) || '<p style="text-align:center;color:#999;margin-top:40px;">Сообщений нет</p>');
+            }
+            if (items.length) oldest = items[0].id;
             $('#more-btn').toggle(!!r.has_more);
             if (!before) {
+                // переход из поиска сообщений (#m123) — показать и подсветить, иначе — к последнему
                 var target = location.hash && $(location.hash);
-                if (target && target.length) { $('html,body').scrollTop(target.offset().top - 120); target.find('.am-bubble').css('outline', '2px solid #f9b115'); }
-                else window.scrollTo(0, document.body.scrollHeight);
+                if (target && target.length) { target.addClass('am-hl'); box.scrollTop = target[0].offsetTop - box.clientHeight / 3; }
+                else box.scrollTop = box.scrollHeight;
             }
         });
     }

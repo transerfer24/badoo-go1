@@ -59,6 +59,7 @@ func MakeSuper(who string) (db.Row, error) {
 }
 
 // Menu — разделы админа для лейаута: без группы — пунктами, с группой — выпадающим списком.
+// Группы идут после пунктов без группы, по старшему разделу внутри (Модерация → Аналитика → Система), а не по id.
 func Menu(uid int64) []web.M {
 	rows := app.Db.CreateCommand(`
 		SELECT a.id, a.action, a.name, a.cid, c.name AS cat_name
@@ -66,7 +67,9 @@ func Menu(uid int64) []web.M {
 		INNER JOIN {{control_rules}} r ON r.action_id = a.id AND r.uid = :uid AND r.status = 1
 		LEFT JOIN {{control_categories}} c ON c.id = a.cid
 		WHERE a.status = 1
-		ORDER BY a.cid ASC, a.priority DESC, a.id ASC
+		ORDER BY CASE WHEN a.cid = 0 THEN 0 ELSE 1 END,
+		         (SELECT MAX(g.priority) FROM {{control_actions}} g WHERE g.cid = a.cid AND g.status = 1) DESC,
+		         a.cid, a.priority DESC, a.id ASC
 	`).BindValue(":uid", uid).MustAll()
 
 	badges := Badges()
@@ -89,7 +92,7 @@ func Menu(uid int64) []web.M {
 			continue
 		}
 		groups[cid] = len(menu)
-		menu = append(menu, web.M{"group": r.Str("cat_name"), "items": []web.M{item}, "badge": badges[r.Str("action")]})
+		menu = append(menu, web.M{"group": r.Str("cat_name"), "icon": groupIcons[r.Str("cat_name")], "items": []web.M{item}, "badge": badges[r.Str("action")]})
 	}
 	return menu
 }
@@ -101,6 +104,9 @@ var icons = map[string]string{
 	"log": "fa-history", "permissions": "fa-key",
 	"analytics": "fa-line-chart", "votes": "fa-heart", "visits": "fa-eye", "sessions": "fa-mobile", "system": "fa-server",
 }
+
+// иконки групп меню по названию; группа, заведённая в «Правах» без иконки, — папка
+var groupIcons = map[string]string{"Модерация": "fa-shield", "Система": "fa-cog", "Аналитика": "fa-bar-chart"}
 
 // Badges — счётчики очередей модерации в меню (у пункта и у его группы): новые жалобы, селфи на проверке.
 func Badges() map[string]int {

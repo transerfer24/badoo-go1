@@ -70,7 +70,7 @@
                 {{$open := false}}{{range .items}}{{if eq $.section .action}}{{$open = true}}{{end}}{{end}}
                 <li class="c-sidebar-nav-item c-sidebar-nav-dropdown{{if $open}} c-show{{end}}">
                     <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
-                        <i class="c-sidebar-nav-icon fa fa-folder-o"></i>
+                        <i class="c-sidebar-nav-icon fa {{or .icon "fa-folder-o"}}"></i>
                         {{.group}}
                         {{if not $open}}{{with .badge}}<span class="badge badge-danger ml-auto" style="margin-right:18px;">{{.}}</span>{{end}}{{end}}
                     </a>
