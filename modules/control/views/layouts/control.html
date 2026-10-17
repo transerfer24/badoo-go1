@@ -1,0 +1,207 @@
+{{$me := me .Ctx}}<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>{{if .View.Title}}{{.View.Title}} - {{end}}{{.App.Name}} · Управление</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    {{.CsrfMeta}}
+    <!-- тема до загрузки CSS (без мигания) -->
+    <script nonce="{{.Nonce}}">if(localStorage.getItem('coreui-theme')==='dark')document.documentElement.classList.add('c-dark-theme');</script>
+
+    <!-- CoreUI 3 и плагины — локально (CSP пускает скрипты только со своего домена), те же, что в StockGo1 -->
+    <link href="{{asset "/theme/coreui/coreui.min.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/plugins/bootstrap-dialog/bootstrap-dialog.min.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/plugins/bootstrap-dialog/bootstrap-fixed.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/plugins/font-awesome/css/font-awesome.min.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/plugins/toastr/toastr.min.css"}}" rel="stylesheet">
+    <link href="{{asset "/plugins/select2/select2.min.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/css/main.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/css/control.css"}}" rel="stylesheet">
+    <link href="{{asset "/css/badge.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/css/control-layout.css"}}" rel="stylesheet">
+    <link href="{{asset "/theme/adm/css/amura.css"}}" rel="stylesheet">
+
+    <script src="{{asset "/theme/adm/js/jquery-3.1.1.min.js"}}"></script>
+    <script src="{{asset "/theme/adm/plugins/bootstrap-dialog/bootstrap.js"}}"></script>
+    <!-- Bootstrap 3 $.fn.modal сохраняем до coreui.min.js -->
+    <script nonce="{{.Nonce}}">window._bs3ModalPlugin = $.fn.modal;</script>
+    <script src="{{asset "/theme/adm/plugins/bootstrap-dialog/bootstrap-dialog.min.js"}}"></script>
+    <script src="{{asset "/theme/adm/plugins/toastr/toastr.min.js"}}"></script>
+    <script src="{{asset "/plugins/select2/select2.min.js"}}"></script>
+    <script src="{{asset "/theme/adm/js/moment/moment.min.js"}}"></script>
+    <script src="{{asset "/theme/adm/js/moment/locale/ru.js"}}"></script>
+    <script src="{{asset "/theme/adm/js/he.js"}}"></script>
+    <script src="{{asset "/theme/adm/js/underscore.js"}}"></script>
+    <script src="{{asset "/theme/adm/js/functions.js"}}"></script>
+    <script src="{{asset "/theme/adm/js/common.js"}}"></script>
+    <script src="{{asset "/theme/adm/js/amura.js"}}"></script>
+    <script nonce="{{.Nonce}}">
+        // CSRF: каждый AJAX несёт токен (Go1 проверяет POST); ссылки-кнопки href="#" не прыгают наверх
+        $.ajaxSetup({ headers: { 'X-CSRF-Token': $('meta[name="csrf-token"]').attr('content') } });
+        $(document).on('click', 'a[href="#"]', function (e) { e.preventDefault(); });
+        moment.locale('ru');
+    </script>
+</head>
+<body>
+
+<div id="app-layout">
+
+<!-- Sidebar -->
+<div class="c-sidebar c-sidebar-dark c-sidebar-lg-show" id="sidebar">
+    <div class="c-sidebar-brand">
+        <a href="/control" class="c-sidebar-brand-full text-white text-decoration-none" style="font-size:18px; font-weight:600;">
+            <span style="color:#ff5a7a;">&#9829;</span> {{.App.Name}}
+        </a>
+        <a href="/control" class="c-sidebar-brand-minimized text-white" style="font-size:15px; font-weight:700;">A</a>
+    </div>
+
+    <ul class="c-sidebar-nav">
+        {{range controlMenu .User.Id}}
+            {{if .item}}
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link{{if eq $.section .item.action}} c-active{{end}}" href="{{.item.url}}">
+                        <i class="c-sidebar-nav-icon fa {{or .item.icon "fa-circle-o"}}"></i>
+                        {{.item.name}}
+                        {{with .item.badge}}<span class="badge badge-danger ml-auto">{{.}}</span>{{end}}
+                    </a>
+                </li>
+            {{else}}
+                {{$open := false}}{{range .items}}{{if eq $.section .action}}{{$open = true}}{{end}}{{end}}
+                <li class="c-sidebar-nav-item c-sidebar-nav-dropdown{{if $open}} c-show{{end}}">
+                    <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+                        <i class="c-sidebar-nav-icon fa fa-folder-o"></i>
+                        {{.group}}
+                        {{if not $open}}{{with .badge}}<span class="badge badge-danger ml-auto" style="margin-right:18px;">{{.}}</span>{{end}}{{end}}
+                    </a>
+                    <ul class="c-sidebar-nav-dropdown-items">
+                        {{range .items}}
+                            <li class="c-sidebar-nav-item">
+                                <a class="c-sidebar-nav-link{{if eq $.section .action}} c-active{{end}}" href="{{.url}}">
+                                    <i class="c-sidebar-nav-icon fa {{or .icon "fa-circle-o"}}"></i>
+                                    {{.name}}
+                                    {{with .badge}}<span class="badge badge-danger ml-auto">{{.}}</span>{{end}}
+                                </a>
+                            </li>
+                        {{end}}
+                    </ul>
+                </li>
+            {{end}}
+        {{end}}
+
+        <li class="c-sidebar-nav-item mt-3">
+            <form method="post" action="/logout" style="display:contents">{{.Csrf}}
+                <button type="submit" class="c-sidebar-nav-link" style="background:none;border:0;width:100%;text-align:left;">
+                    <i class="c-sidebar-nav-icon fa fa-sign-out"></i>
+                    Выход
+                </button>
+            </form>
+        </li>
+    </ul>
+
+    <button class="c-sidebar-minimizer c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-minimized"></button>
+</div>
+
+<!-- Main wrapper -->
+<div class="c-wrapper">
+
+    <header class="c-header c-header-light border-bottom">
+        <button class="c-header-toggler c-class-toggler d-lg-none mr-auto" type="button" data-target="#sidebar" data-class="c-sidebar-show">
+            <span class="c-header-toggler-icon"></span>
+        </button>
+        <button class="c-header-toggler c-class-toggler d-md-down-none ml-3" type="button" data-target="#sidebar" data-class="c-sidebar-lg-show" responsive="true">
+            <span class="c-header-toggler-icon"></span>
+        </button>
+
+        <form class="d-none d-md-flex ml-3" id="quick-search" style="max-width:320px; flex:1;">
+            <input type="search" class="form-control form-control-sm" id="quick-search-q" placeholder="Найти пользователя: имя, почта, #id">
+        </form>
+
+        <ul class="c-header-nav ml-auto mr-3">
+            <li class="c-header-nav-item">
+                <button type="button" id="theme-toggle" title="Тёмная / светлая тема"
+                        style="background:none;border:none;cursor:pointer;padding:6px 10px;color:#768192;font-size:17px;line-height:1;">
+                    <i class="fa fa-moon-o" id="theme-icon"></i>
+                </button>
+            </li>
+            {{if $me}}
+            <li class="c-header-nav-item">
+                <a class="c-header-nav-link" href="/control/users/view?uid={{$me.Id}}">
+                    <img src="{{$me.Avatar}}" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;margin-right:6px;">
+                    {{$me.Name}}
+                </a>
+            </li>
+            {{end}}
+            <li class="c-header-nav-item ml-2">
+                <a class="btn btn-sm btn-outline-secondary" href="/"><i class="fa fa-heart mr-1"></i> На сайт</a>
+            </li>
+        </ul>
+    </header>
+
+    <div class="c-body">
+        <main class="c-main">
+            <div class="container-fluid">
+                {{.Content}}
+            </div>
+        </main>
+
+        <footer class="c-footer text-muted">
+            <div>
+                <a href="/">Amura</a> &nbsp;|&nbsp;
+                <a href="/control">Управление</a>
+            </div>
+            <div class="ml-auto">{{.App.Name}}</div>
+        </footer>
+    </div>
+</div>
+
+</div><!-- /#app-layout -->
+
+<script src="{{asset "/theme/coreui/perfect-scrollbar.min.js"}}"></script>
+<script src="{{asset "/theme/coreui/coreui.min.js"}}"></script>
+<script nonce="{{.Nonce}}">
+// Bootstrap 3 $.fn.modal обратно после CoreUI (BootstrapDialog работает на нём)
+if (window._bs3ModalPlugin) $.fn.modal = window._bs3ModalPlugin;
+
+// BootstrapDialog: $backdrop может быть null до конца анимации
+if (typeof BootstrapDialog !== 'undefined' && BootstrapDialog.prototype.updateZIndex) {
+    var _origUpdateZIndex = BootstrapDialog.prototype.updateZIndex;
+    BootstrapDialog.prototype.updateZIndex = function () { try { _origUpdateZIndex.call(this); } catch (e) {} };
+}
+
+$(document).ready(function () {
+    $('.row-filter').closest('.row').addClass('filter-row');
+    $('.filter-row').closest('section').addClass('has-filter-row');
+
+    $('table').not('.no-wrap table').each(function () {
+        if (!$(this).parent().hasClass('table-responsive-wrap') && !$(this).parent().hasClass('table-responsive')) {
+            $(this).wrap('<div class="table-responsive-wrap"></div>');
+        }
+    });
+
+    // быстрый поиск в шапке → список пользователей с этим запросом
+    $('#quick-search').on('submit', function (e) {
+        e.preventDefault();
+        var q = $.trim($('#quick-search-q').val());
+        if (!q) return;
+        if (/^#?\d+$/.test(q)) { window.location = '/control/users/view?uid=' + q.replace('#', ''); return; }
+        window.location = '/control/users?search=' + encodeURIComponent(q);
+    });
+
+    // светлая / тёмная тема
+    function updateThemeIcon() {
+        var isDark = document.documentElement.classList.contains('c-dark-theme');
+        $('#theme-icon').toggleClass('fa-moon-o', !isDark).toggleClass('fa-sun-o', isDark);
+    }
+    updateThemeIcon();
+    $('#theme-toggle').on('click', function () {
+        document.documentElement.classList.toggle('c-dark-theme');
+        localStorage.setItem('coreui-theme', document.documentElement.classList.contains('c-dark-theme') ? 'dark' : 'light');
+        updateThemeIcon();
+    });
+});
+</script>
+{{block "scripts" .}}{{end}}
+
+</body>
+</html>

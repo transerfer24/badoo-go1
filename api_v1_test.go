@@ -16,6 +16,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -23,6 +24,7 @@ import (
 
 	"badoo/config"
 	"badoo/migrations"
+	"badoo/modules/control"
 
 	"whales.team/go1"
 	"whales.team/go1/app"
@@ -114,6 +116,7 @@ func newTestApp(t *testing.T, nnURL string) http.Handler {
 	cfg := config.App
 	cfg.Env = "test"
 	cfg.BasePath = t.TempDir()
+	cfg.Web.ViewsDir, _ = filepath.Abs("views") // страницы сайта (вход в админку в control_test.go) — из репозитория
 	cfg.Db = testutil.Config(t)
 	cfg.Redis = ""
 	cfg.Metrics.Enabled = false
@@ -121,6 +124,7 @@ func newTestApp(t *testing.T, nnURL string) http.Handler {
 	cfg.Modules = []go1.Module{
 		admin.New(admin.Config{Title: "Amura", Role: "admin"}),
 		files.New(files.Config{Storage: files.Local{Dir: t.TempDir(), BaseUrl: "/uploads"}}),
+		control.New(),
 	}
 	cfg.Session = web.SessionConfig{Key: []byte("0123456789abcdef0123456789abcdef")}
 	p := map[string]any{}

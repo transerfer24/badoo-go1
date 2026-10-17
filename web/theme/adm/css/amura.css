@@ -1,0 +1,83 @@
+/* Дополнения админки Amura к теме StockGo1 (control-layout.css) */
+.am-ava { border-radius: 50%; object-fit: cover; flex: 0 0 auto; display: inline-block; vertical-align: middle; background: #e4e7ea; }
+.am-ava-empty { text-align: center; color: #fff; font-weight: 600; background: linear-gradient(135deg, #ff7a8a, #8a63ff); }
+.am-user { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+.am-sub { font-size: 11px; color: #768192; }
+a.am-banned { text-decoration: line-through; color: #e55353 !important; }
+
+.am-pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin: 1px 4px 1px 0; white-space: nowrap; }
+.am-pill-red { background: #fdecea; color: #e55353; }
+.am-pill-green { background: #e6f6ec; color: #1f9d55; }
+.am-pill-yellow { background: #fff6dd; color: #b7791f; }
+.am-pill-purple { background: #efeafd; color: #6f42c1; }
+.am-pill-grey { background: #eef0f3; color: #768192; }
+.am-pill-blue { background: #e7f1ff; color: #2b6cb0; }
+
+.am-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.am-filters .form-group { margin: 0; min-width: 130px; }
+.am-filters label { font-size: 11px; color: #768192; margin-bottom: 2px; display: block; text-transform: uppercase; font-weight: 600; }
+.am-filters .form-control { height: 32px; padding: 4px 8px; font-size: 13px; }
+.am-filters .am-wide { min-width: 240px; flex: 1 1 240px; }
+.am-filters .am-narrow { min-width: 70px; width: 80px; }
+
+.dash-cards { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
+.dash-card { flex: 1 1 200px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 18px; }
+.dash-card a { color: inherit; }
+.dash-card-title { font-weight: 600; color: #768192; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
+.dash-card-value { font-size: 26px; font-weight: 700; color: #321fdb; line-height: 1.2; }
+.dash-card-value.warn { color: #e55353; }
+.dash-card-sub { font-size: 12px; color: #768192; margin-top: 4px; }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.dash-grid > section { margin-bottom: 0 !important; }
+
+.am-bars { display: flex; align-items: flex-end; gap: 3px; height: 110px; padding-top: 6px; }
+.am-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.am-bar > div { width: 100%; border-radius: 3px 3px 0 0; opacity: .85; }
+.am-bar:hover > div { opacity: 1; }
+.am-bars-legend { display: flex; justify-content: space-between; font-size: 11px; color: #768192; margin-top: 4px; }
+
+.am-photos { display: flex; flex-wrap: wrap; gap: 10px; }
+.am-photo { position: relative; width: 130px; }
+.am-photo img { width: 130px; height: 170px; object-fit: cover; border-radius: 8px; cursor: zoom-in; display: block; }
+.am-photo .am-photo-actions { display: flex; gap: 4px; margin-top: 4px; }
+.am-photo .am-photo-actions .btn { flex: 1; padding: 2px 4px; font-size: 11px; }
+.am-photo .am-main { position: absolute; top: 6px; left: 6px; }
+
+.am-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.am-grid-item { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+.am-grid-item img { width: 100%; height: 210px; object-fit: cover; cursor: zoom-in; display: block; }
+.am-grid-item .am-grid-body { padding: 8px; font-size: 12px; }
+.am-empty { grid-column: 1 / -1; text-align: center; color: #999; padding: 30px; }
+
+.am-verify { display: flex; gap: 18px; padding: 16px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 14px; align-items: flex-start; flex-wrap: wrap; }
+.am-verify .am-selfie img { width: 220px; height: 290px; object-fit: cover; border-radius: 8px; border: 3px solid #f9b115; cursor: zoom-in; }
+.am-verify .am-compare { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+.am-verify .am-compare img { width: 140px; height: 185px; object-fit: cover; border-radius: 8px; cursor: zoom-in; }
+.am-verify .am-verify-actions { display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+
+.am-chat { max-width: 760px; margin: 0 auto; }
+.am-msg { display: flex; margin: 6px 0; }
+.am-msg.right { justify-content: flex-end; }
+.am-msg .am-bubble { max-width: 70%; padding: 8px 12px; border-radius: 14px; background: #eef0f3; color: #3c4b64; font-size: 14px; white-space: pre-wrap; word-break: break-word; position: relative; }
+.am-msg.right .am-bubble { background: #e8e3ff; }
+.am-msg .am-meta { font-size: 10px; color: #8a93a2; margin-top: 3px; }
+.am-msg .am-del { display: none; position: absolute; top: -8px; right: -8px; background: #e55353; color: #fff; border-radius: 50%; width: 20px; height: 20px; text-align: center; line-height: 20px; font-size: 11px; cursor: pointer; }
+.am-msg:hover .am-del { display: block; }
+.am-chat-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.am-kv td:first-child { font-weight: 600; width: 210px; color: #768192; white-space: nowrap; }
+.am-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.am-ban-box { background: #fdecea; color: #a12a2a; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; }
+.sidebar-badge, .c-sidebar-nav-link .badge { margin-left: auto; }
+
+.c-dark-theme .dash-card, .c-dark-theme .am-grid-item { background: #2e3240; border-color: #3a3f50; }
+.c-dark-theme .am-msg .am-bubble { background: #3a3f50; color: #e1e3e8; }
+.c-dark-theme .am-msg.right .am-bubble { background: #3d3566; }
+.c-dark-theme .am-verify { border-color: #3a3f50; }
+
+/* control-layout.css красит иконки кнопок в белый — у контурных кнопок они пропадали */
+.btn.btn-outline-danger { color: #e55353; border-color: #e55353; background: #fff; }
+.btn.btn-outline-danger i { color: #e55353 !important; }
+.btn.btn-outline-danger:hover { background: #e55353; color: #fff; }
+.btn.btn-outline-danger:hover i { color: #fff !important; }
+.btn.btn-outline-secondary i { color: inherit !important; }

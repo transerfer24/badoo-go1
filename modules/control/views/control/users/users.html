@@ -1,0 +1,181 @@
+{{.View.SetTitle "Пользователи"}}
+
+<section style="padding-top: 16px;">
+    <form id="filters" class="am-filters" autocomplete="off">
+        <div class="form-group am-wide">
+            <label>Поиск</label>
+            <input name="search" type="search" class="form-control" placeholder="Имя, почта, #id, id Neuronet">
+        </div>
+        <div class="form-group">
+            <label>Статус</label>
+            <select name="status" class="form-control">
+                <option value="">Все</option>
+                <option value="active">Активные</option>
+                <option value="banned">Заблокированные</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Анкета</label>
+            <select name="onboarded" class="form-control">
+                <option value="">Любая</option>
+                <option value="1">Заполнена</option>
+                <option value="0">Не заполнена</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Пол</label>
+            <select name="gender" class="form-control">
+                <option value="">Любой</option>
+                <option value="f">Женщины</option>
+                <option value="m">Мужчины</option>
+                <option value="x">Небинарные</option>
+            </select>
+        </div>
+        <div class="form-group am-narrow">
+            <label>Возраст от</label>
+            <input name="age_from" type="number" min="18" max="99" class="form-control">
+        </div>
+        <div class="form-group am-narrow">
+            <label>до</label>
+            <input name="age_to" type="number" min="18" max="99" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>Город</label>
+            <select name="city" class="form-control">
+                <option value="">Все</option>
+                {{range .cities}}<option value="{{.Name}}">{{.Name}}</option>{{end}}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Верификация</label>
+            <select name="verified" class="form-control">
+                <option value="">Любая</option>
+                <option value="2">Подтверждены</option>
+                <option value="1">На проверке</option>
+                <option value="0">Нет</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Premium</label>
+            <select name="premium" class="form-control">
+                <option value="">Любой</option>
+                <option value="1">Есть</option>
+                <option value="0">Нет</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Цель</label>
+            <select name="intent" class="form-control">
+                <option value="">Любая</option>
+                {{range $k, $v := .intents}}<option value="{{$k}}">{{$v}}</option>{{end}}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Был в сети</label>
+            <select name="seen" class="form-control">
+                <option value="">Когда угодно</option>
+                <option value="5m">Онлайн сейчас</option>
+                <option value="1h">За час</option>
+                <option value="24h">За сутки</option>
+                <option value="7d">За неделю</option>
+                <option value="30d">За 30 дней</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Фото</label>
+            <select name="photos" class="form-control">
+                <option value="">Любые</option>
+                <option value="1">Есть фото</option>
+                <option value="0">Без фото</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Регистрация с</label>
+            <input name="created_from" type="date" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>по</label>
+            <input name="created_to" type="date" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>Сортировка</label>
+            <select name="sort" class="form-control">
+                <option value="">Новые</option>
+                <option value="old">Старые</option>
+                <option value="seen">Недавно в сети</option>
+                <option value="reports">Больше жалоб</option>
+                <option value="likes">Больше симпатий</option>
+            </select>
+        </div>
+        <div class="form-group" style="min-width:auto;">
+            <label>&nbsp;</label>
+            <div style="display:flex;gap:10px;align-items:center;height:32px;font-size:13px;">
+                <label style="text-transform:none;margin:0;font-weight:400;color:inherit;"><input type="checkbox" name="reported" value="1"> с жалобами</label>
+                <label style="text-transform:none;margin:0;font-weight:400;color:inherit;"><input type="checkbox" name="app" value="1"> в приложении</label>
+                <label style="text-transform:none;margin:0;font-weight:400;color:inherit;"><input type="checkbox" name="invisible" value="1"> невидимки</label>
+            </div>
+        </div>
+        <div class="form-group" style="min-width:auto;">
+            <label>&nbsp;</label>
+            <button type="button" class="btn btn--secondary btn--sm" id="reset" style="height:32px;">Сбросить</button>
+        </div>
+    </form>
+</section>
+
+<section style="min-height: 700px;">
+    <h4 style="margin-bottom: 10px;">Пользователи (<span class="users-count">0</span>)</h4>
+    <table class="border--round table--alternate-row">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Пользователь</th>
+            <th>Город</th>
+            <th>Статус</th>
+            <th class="text-center" title="Фото / симпатии / пары / жалобы">Фото · ❤ · Пары · Жалобы</th>
+            <th>Регистрация</th>
+            <th>В сети</th>
+            <th class="text-center"></th>
+        </tr>
+        </thead>
+        <tbody id="users_result"></tbody>
+    </table>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var list;
+    $(function () {
+        filters_from_url('#filters');
+        list = scroll_list({
+            url: '/control/users/get-users', tbody: '#users_result', cols: 8, count: '.users-count',
+            data: function () { var d = form_data('#filters'); filters_to_url(d); return d; },
+            row: generate_user
+        });
+        list.reload();
+
+        var timer = null;
+        $('#filters').on('input', 'input[type=search], input[type=number]', function () {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(list.reload, 400);
+        });
+        $('#filters').on('change', 'select, input[type=date], input[type=checkbox]', list.reload);
+        $('#filters').on('submit', function (e) { e.preventDefault(); list.reload(); });
+        $('#reset').on('click', function () { $('#filters')[0].reset(); $('#filters input').val(function () { return this.type === 'checkbox' ? this.value : ''; }); list.reload(); });
+    });
+
+    function generate_user(v) {
+        var sub = (GENDER_ICON[v.gender] || '') + ' ' + (age_of(v.birthdate) || '—') + ' · ' + esc(v.email);
+        var counts = '<span title="фото">' + v.photos_count + '</span> · <span title="симпатий получено">' + v.likes_count + '</span> · ' +
+            '<span title="пар">' + v.matches_count + '</span> · ' +
+            (parseInt(v.reports_count) > 0 ? '<b style="color:#e55353;" title="жалоб">' + v.reports_count + '</b>' : '0');
+        return '<tr>' +
+            '<td>' + v.id + '</td>' +
+            '<td>' + user_cell(v.id, v.name || '(без имени)', v.photo, v.banned, sub) + '</td>' +
+            '<td>' + esc(v.city || '—') + '</td>' +
+            '<td>' + user_badges(v) + (parseInt(v.banned) && v.ban_reason ? '<div class="am-sub">' + esc(v.ban_reason) + '</div>' : '') + '</td>' +
+            '<td class="text-center" style="white-space:nowrap;">' + counts + '</td>' +
+            '<td style="white-space:nowrap;">' + dt(v.created_at) + '</td>' +
+            '<td style="white-space:nowrap;">' + ago(v.last_seen) + '</td>' +
+            '<td class="text-center"><a href="/control/users/view?uid=' + v.id + '" class="btn btn-sm btn-primary" title="Карточка"><i class="fa fa-info"></i></a></td>' +
+            '</tr>';
+    }
+</script>

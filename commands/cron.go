@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"badoo/components/meetups"
+	"badoo/modules/control"
 
 	"whales.team/go1/console"
 	"whales.team/go1/cron"
@@ -27,6 +28,17 @@ func init() {
 
 // All — консольные команды проекта (config.App.Commands).
 var All = []console.Command{
+	{Name: "control/super", Description: "Сделать суперадмином /control: control/super <email или id>", Run: func(args console.Args) error {
+		if len(args.Positional) == 0 {
+			return fmt.Errorf("укажите email или id: control/super you@example.com")
+		}
+		u, err := control.MakeSuper(args.Positional[0])
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Суперадмин: #%d %s <%s> — все разделы /control открыты\n", u.Int64("id"), u.Str("name"), u.Str("email"))
+		return nil
+	}},
 	{Name: "meetups/demo", Description: "Досоздать тестовые события на неделю (AMURA_DEV=1)", Run: func(args console.Args) error {
 		fmt.Printf("Добавлено тестовых событий: %d\n", meetups.EnsureDemo())
 		return nil

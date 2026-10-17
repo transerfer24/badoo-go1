@@ -1,0 +1,51 @@
+{{.View.SetTitle (printf "Событие #%d" .id)}}
+
+<section style="padding-top: 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <a href="/control/meetups" class="btn btn--secondary btn--sm"><i class="fa fa-arrow-left"></i></a>
+            <h4 style="margin:0;" id="title">Событие #{{.id}}</h4>
+        </div>
+        <button class="btn btn-outline-danger btn-sm" id="del-btn"><i class="fa fa-trash"></i> Удалить</button>
+    </div>
+</section>
+
+<section>
+    <div class="row">
+        <div class="col-lg-6">
+            <table class="border--round am-kv"><tbody id="info_result"></tbody></table>
+        </div>
+        <div class="col-lg-6">
+            <h4>Идут (<span class="g-count">0</span>)</h4>
+            <table class="border--round table--alternate-row">
+                <thead><tr><th>Кто</th><th>Записался</th><th>Отметился</th></tr></thead>
+                <tbody id="going_result"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var id = {{.id}}, item = null;
+    $(function () {
+        post('/control/meetups/get-meetup', { id: id }, function (r) {
+            var v = item = r.item;
+            $('#title').html(esc(v.title) + (parseInt(v.demo) ? ' ' + pill('тест', 'grey') : ''));
+            var kv = function (l, x) { return '<tr><td>' + l + '</td><td>' + (x || '—') + '</td></tr>'; };
+            $('#info_result').html(
+                kv('Тип', esc(v.kind_label || v.kind)) + kv('Описание', v.about ? '<div style="white-space:pre-wrap;">' + esc(v.about) + '</div>' : '') +
+                kv('Место', esc(v.place)) + kv('Адрес', esc(v.address)) + kv('Город', esc(v.city)) +
+                kv('Начало', dt(v.starts_at)) + kv('Конец', dt(v.ends_at)) + kv('Мест', parseInt(v.capacity) || 'без ограничения') + kv('Цена', esc(v.price)) +
+                kv('Организатор', v.host_id ? user_link(v.host_id, v.host_name, v.host_banned) : 'Amura') + kv('Создано', dt(v.created_at)));
+            $('.g-count').html((r.going || []).length);
+            $('#going_result').html(_.map(r.going, function (g) {
+                return '<tr><td>' + user_cell(g.id, g.name, g.photo, g.banned, (GENDER_ICON[g.gender] || '') + ' ' + age_of(g.birthdate)) + '</td><td>' + dt(g.created_at) + '</td>' +
+                    '<td>' + (parseInt(g.checked_in_at) ? pill(dt(g.checked_in_at, 'HH:mm'), 'green') : '—') + '</td></tr>';
+            }).join('') || empty_row(3, 'Пока никто'));
+        });
+        $('#del-btn').on('click', function () {
+            confirm_action({ title: 'Удалить событие?', danger: true, ok: 'Удалить', message: 'Событие и список идущих удалятся.' },
+                function () { post('/control/meetups/delete', { id: id }, function () { location = '/control/meetups'; }); });
+        });
+    });
+</script>

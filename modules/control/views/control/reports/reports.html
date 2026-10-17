@@ -1,0 +1,84 @@
+{{.View.SetTitle "Жалобы"}}
+
+<section style="padding-top: 16px;">
+    <form id="filters" class="am-filters" autocomplete="off">
+        <div class="form-group">
+            <label>Статус</label>
+            <select name="status" class="form-control">
+                <option value="0">Новые</option>
+                <option value="1">Приняты меры</option>
+                <option value="2">Отклонены</option>
+                <option value="all">Все</option>
+            </select>
+        </div>
+        <div class="form-group am-wide">
+            <label>Поиск</label>
+            <input name="search" type="search" class="form-control" placeholder="Причина, имя, #id">
+        </div>
+        <div class="form-group">
+            <label>Сортировка</label>
+            <select name="sort" class="form-control">
+                <option value="">Свежие</option>
+                <option value="count">Больше жалоб на человека</option>
+            </select>
+        </div>
+        <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div style="height:32px;line-height:32px;" id="counts"></div></div>
+    </form>
+</section>
+
+<section style="min-height: 700px;">
+    <table class="border--round table--alternate-row">
+        <thead><tr><th>На кого</th><th>Причина</th><th>От кого</th><th>Когда</th><th>Статус</th><th class="text-center">Действия</th></tr></thead>
+        <tbody id="reports_result"></tbody>
+    </table>
+    <p style="font-size:12px;color:#768192;margin-top:10px;">Решение применяется ко всем новым жалобам на этого человека. «Заблокировать» — то же, что в карточке пользователя: не войдёт и пропадёт из выдачи.</p>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var list, ST = { 0: pill('новая', 'yellow'), 1: pill('приняты меры', 'red'), 2: pill('отклонена', 'grey') };
+    $(function () {
+        filters_from_url('#filters');
+        list = scroll_list({
+            url: '/control/reports/get-reports', tbody: '#reports_result', cols: 6,
+            data: function () { var d = form_data('#filters'); filters_to_url(d); return d; },
+            onLoad: function (r) {
+                var c = r.counts || {};
+                $('#counts').html(pill('новых ' + c.new, 'yellow') + pill('мер ' + c.resolved, 'red') + pill('отклонено ' + c.rejected, 'grey'));
+            },
+            row: function (v) {
+                var sub = (parseInt(v.reported_total) > 1 ? '<b style="color:#e55353;">жалоб: ' + v.reported_total + '</b>' : 'жалоба одна') +
+                    (parseInt(v.reported_verified) === 2 ? ' · ✓' : '');
+                var acts = '';
+                if (parseInt(v.status) === 0) {
+                    acts = (parseInt(v.reported_banned) ? '' : '<button class="btn btn-sm btn-danger rep-ban" data-id="' + v.id + '" data-name="' + esc(v.reported_name) + '" title="Заблокировать"><i class="fa fa-ban"></i></button> ') +
+                        '<button class="btn btn-sm btn--secondary rep-reject" data-id="' + v.id + '" title="Отклонить"><i class="fa fa-times"></i></button> ';
+                } else {
+                    acts = '<button class="btn btn-sm btn--secondary rep-reopen" data-id="' + v.id + '" title="Вернуть в новые"><i class="fa fa-undo"></i></button> ';
+                }
+                if (v.match_id) acts += '<a class="btn btn-sm btn-primary" href="/control/chats/view?id=' + v.match_id + '" title="Их переписка"><i class="fa fa-comments"></i></a>';
+                var st = (ST[v.status] || '') + (parseInt(v.status) && v.resolved_by_name ? '<div class="am-sub">' + esc(v.resolved_by_name) + ', ' + dt(v.resolved_at) + '</div>' : '');
+                return '<tr><td>' + user_cell(v.reported_id, v.reported_name, v.reported_photo, v.reported_banned, sub) + '</td>' +
+                    '<td style="max-width:320px;">' + esc(v.reason) + '</td><td>' + user_link(v.reporter_id, v.reporter_name) + '</td>' +
+                    '<td style="white-space:nowrap;">' + dt(v.created_at) + '</td><td>' + st + '</td><td class="text-center" style="white-space:nowrap;">' + acts + '</td></tr>';
+            }
+        });
+        list.reload();
+        var timer = null;
+        $('#filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(list.reload, 400); });
+        $('#filters').on('change', 'select', list.reload);
+        $('#filters').on('submit', function (e) { e.preventDefault(); });
+
+        $(document).on('click', '.rep-ban', function () {
+            var id = $(this).data('id');
+            confirm_action({ title: 'Заблокировать ' + esc($(this).data('name')) + '?', danger: true, ok: 'Заблокировать', reason: true, reasonPlaceholder: 'По жалобам: …',
+                message: 'Все новые жалобы на него будут закрыты как «приняты меры».' },
+                function (reason) { post('/control/reports/resolve', { id: id, action: 'ban', reason: reason }, function () { message_ok('Заблокирован'); list.reload(); }); });
+        });
+        $(document).on('click', '.rep-reject', function () {
+            post('/control/reports/resolve', { id: $(this).data('id'), action: 'reject' }, function () { message_ok('Отклонено'); list.reload(); });
+        });
+        $(document).on('click', '.rep-reopen', function () {
+            post('/control/reports/resolve', { id: $(this).data('id'), action: 'reopen' }, function () { list.reload(); });
+        });
+    });
+</script>

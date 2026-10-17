@@ -1,0 +1,121 @@
+{{.View.SetTitle "Дашборд"}}
+
+<section style="padding-top: 20px;">
+    <div class="row">
+        <div class="col-md-8"><h4 style="margin: 0;">Сводка <span id="mode" style="font-size:12px;"></span></h4></div>
+        <div class="col-md-4 text-right"><button class="btn btn--secondary btn--sm" id="refresh-btn"><i class="fa fa-refresh"></i> Обновить</button></div>
+    </div>
+    <div class="dash-cards" id="cards_people"><p style="color:#999;">Загрузка...</p></div>
+    <div class="dash-cards" id="cards_activity"></div>
+    <div class="dash-cards" id="cards_moderation"></div>
+</section>
+
+<div class="dash-grid">
+    <section>
+        <h4>Регистрации за 30 дней</h4>
+        <div id="chart_regs"></div>
+    </section>
+    <section>
+        <h4>Пары за 30 дней</h4>
+        <div id="chart_matches"></div>
+    </section>
+    <section>
+        <h4>Сообщения за 30 дней</h4>
+        <div id="chart_messages"></div>
+    </section>
+</div>
+
+<div class="dash-grid" style="margin-top:16px;">
+    <section>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h4>Новые анкеты</h4><a class="btn btn--secondary btn--sm" href="/control/users">Все</a>
+        </div>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Кто</th><th>Город</th><th>Статус</th><th>Регистрация</th></tr></thead>
+            <tbody id="last_result"><tr><td colspan="4" style="text-align:center;color:#999;">Загрузка...</td></tr></tbody>
+        </table>
+    </section>
+    <section>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h4>Новые жалобы</h4><a class="btn btn--secondary btn--sm" href="/control/reports">Разобрать</a>
+        </div>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>На кого</th><th>Причина</th><th>От кого</th><th>Когда</th></tr></thead>
+            <tbody id="reports_result"></tbody>
+        </table>
+        <h4 style="margin-top:24px;">Города</h4>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Город</th><th class="text-right">Анкет</th><th class="text-right">Активны за 7 дней</th></tr></thead>
+            <tbody id="cities_result"></tbody>
+        </table>
+    </section>
+</div>
+
+<script nonce="{{.Nonce}}">
+$(function () {
+    get_info();
+    $('#refresh-btn').on('click', get_info);
+});
+
+function num(v) { return String(parseInt(v) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+
+function card(title, value, sub, href, warn) {
+    var v = '<div class="dash-card-value' + (warn ? ' warn' : '') + '">' + value + '</div>';
+    return '<div class="dash-card">' + (href ? '<a href="' + href + '" style="text-decoration:none;">' : '') +
+        '<div class="dash-card-title">' + title + '</div>' + v +
+        (sub ? '<div class="dash-card-sub">' + sub + '</div>' : '') + (href ? '</a>' : '') + '</div>';
+}
+
+function get_info() {
+    post('/control/index/get-index-info', {}, function (r) {
+        var u = r.users || {}, a = r.activity || {};
+        $('#mode').html((r.dev ? pill('AMURA_DEV: селфи без проверки, Premium без оплаты', 'yellow') : pill('боевой режим', 'green')) +
+            (r.chat_verify ? pill('писать могут только верифицированные', 'blue') : pill('писать могут все', 'grey')));
+
+        $('#cards_people').html(
+            card('Пользователи', num(u.total), num(u.onboarded) + ' с анкетой · ' + num(u.men) + ' ♂ · ' + num(u.women) + ' ♀ · ' + num(u.other) + ' ⚧', '/control/users') +
+            card('Новые', '+' + num(u.new_day), 'за сутки · +' + num(u.new_week) + ' за неделю · +' + num(u.new_month) + ' за 30 дней', '/control/users') +
+            card('Онлайн сейчас', num(u.online), 'DAU ' + num(u.dau) + ' · WAU ' + num(u.wau) + ' · MAU ' + num(u.mau), '/control/users?seen=5m') +
+            card('Premium', num(u.premium), 'верифицированы: ' + num(u.verified), '/control/users?premium=1')
+        );
+        $('#cards_activity').html(
+            card('Пары', num(a.matches), '+' + num(a.matches_day) + ' за сутки', '/control/chats') +
+            card('Сообщения', num(a.messages), '+' + num(a.messages_day) + ' за сутки', '/control/chats') +
+            card('Голоса за сутки', num(parseInt(a.likes_day) + parseInt(a.passes_day)), '❤ ' + num(a.likes_day) + ' · ✕ ' + num(a.passes_day)) +
+            card('Встречи', num(a.meetups_upcoming), 'предстоящих · идут ' + num(a.meetups_going) + ' чел.', '/control/meetups')
+        );
+        $('#cards_moderation').html(
+            card('Новые жалобы', num(a.reports_new), '+' + num(a.reports_day) + ' за сутки', '/control/reports', a.reports_new > 0) +
+            card('Селфи на проверке', num(u.verify_queue), 'очередь верификации', '/control/verification', u.verify_queue > 0) +
+            card('Заблокированы', num(u.banned), '', '/control/users?status=banned') +
+            card('В приложении', num(a.app_users), 'с push: ' + num(a.push_users) + ' · фото: ' + num(a.photos))
+        );
+
+        bars('#chart_regs', r.days.regs, 30, '#321fdb');
+        bars('#chart_matches', r.days.matches, 30, '#e83e8c');
+        bars('#chart_messages', r.days.messages, 30, '#2eb85c');
+
+        var rows = '';
+        $.each(r.last || [], function (i, v) {
+            var sub = (GENDER_ICON[v.gender] || '') + ' ' + (age_of(v.birthdate) || '') + ' · ' + esc(v.email);
+            rows += '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned, sub) + '</td><td>' + esc(v.city || '—') + '</td>' +
+                '<td>' + user_badges(v) + '</td><td style="white-space:nowrap;">' + dt(v.created_at, 'DD.MM HH:mm') + '</td></tr>';
+        });
+        $('#last_result').html(rows || empty_row(4));
+
+        rows = '';
+        $.each(r.reports || [], function (i, v) {
+            rows += '<tr><td>' + user_link(v.reported_id, v.reported_name, v.reported_banned) + '</td><td>' + esc(v.reason) + '</td>' +
+                '<td>' + user_link(v.reporter_id, v.reporter_name) + '</td><td style="white-space:nowrap;">' + dt(v.created_at, 'DD.MM HH:mm') + '</td></tr>';
+        });
+        $('#reports_result').html(rows || empty_row(4, 'Новых жалоб нет'));
+
+        rows = '';
+        $.each(r.cities || [], function (i, v) {
+            rows += '<tr><td><a href="/control/users?city=' + encodeURIComponent(v.city) + '">' + esc(v.city) + '</a></td>' +
+                '<td class="text-right">' + num(v.n) + '</td><td class="text-right">' + num(v.active) + '</td></tr>';
+        });
+        $('#cities_result').html(rows || empty_row(3));
+    });
+}
+</script>

@@ -346,10 +346,16 @@ func syncUser(p map[string]any) (int64, *Err) {
 		name = strings.TrimSpace(fmt.Sprint(p["first_name"]))
 	}
 	if id := app.Db.CreateCommand("SELECT id FROM {{users}} WHERE neuronet_uid = :nuid").BindValue(":nuid", nuid).MustInt(); id > 0 {
+		if e := banned(id); e != nil {
+			return 0, e
+		}
 		app.Db.CreateCommand("UPDATE {{users}} SET email = :email WHERE id = :id AND email <> :email", db.P{":email": email, ":id": id}).MustExecute()
 		return id, nil
 	}
 	if id := app.Db.CreateCommand("SELECT id FROM {{users}} WHERE email = :email").BindValue(":email", email).MustInt(); id > 0 {
+		if e := banned(id); e != nil {
+			return 0, e
+		}
 		app.Db.MustUpdate("{{users}}", db.H{"neuronet_uid": nuid}, db.H{"id": id})
 		return id, nil
 	}
@@ -359,6 +365,19 @@ func syncUser(p map[string]any) (int64, *Err) {
 		return 0, aerr("message", "Не удалось завершить вход. Попробуйте ещё раз.")
 	}
 	return id, nil
+}
+
+// banned — аккаунт заблокирован в /control: вход не завершаем, показываем причину.
+func banned(id int64) *Err {
+	row := app.Db.CreateCommand("SELECT banned, ban_reason FROM {{users}} WHERE id = :id").BindValue(":id", id).MustRow()
+	if row == nil || !row.Bool("banned") {
+		return nil
+	}
+	msg := "Аккаунт заблокирован."
+	if r := strings.TrimSpace(row.Str("ban_reason")); r != "" {
+		msg += " Причина: " + r + "."
+	}
+	return aerr("message", msg+" Если это ошибка — напишите в поддержку.")
 }
 
 // newUserRow — минимальная запись users: остальное заполнит онбординг. pass_hash = "neuronet": своего пароля нет.

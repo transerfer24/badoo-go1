@@ -1,0 +1,55 @@
+{{.View.SetTitle "Верификация"}}
+
+<section style="padding-top: 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <ul class="nav-tabs-si" id="ver-tabs" style="margin:0;">
+            <li class="active" data-status="1"><a href="#">На проверке (<span class="q-count">0</span>)</a></li>
+            <li data-status="2"><a href="#">Подтверждённые</a></li>
+        </ul>
+        {{if .dev}}<div><span class="am-pill am-pill-yellow">AMURA_DEV=1 — селфи подтверждается сразу, очередь не копится</span></div>{{end}}
+    </div>
+</section>
+
+<section style="min-height: 700px;">
+    <p style="font-size:13px;color:#768192;margin-top:0;">Сравните селфи (жёлтая рамка) с фото анкеты: тот же человек, живое фото, не скриншот. Подтверждение ставит галочку в анкете; отказ удаляет селфи — человек может прислать новое.</p>
+    <div id="queue"></div>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var vstatus = 1, list;
+    $(function () {
+        list = scroll_list({
+            url: '/control/verification/get-queue', tbody: '#queue', grid: true,
+            data: function () { return { status: vstatus }; },
+            onLoad: function (r) { if (vstatus === 1) $('.q-count').html(r.count || 0); },
+            row: function (v) {
+                var ph = _.map(v.photos, function (u) { return '<img class="am-zoom" src="' + esc(u) + '" alt="">'; }).join('') || '<p style="color:#999;">Фото в анкете нет</p>';
+                var acts = vstatus === 1
+                    ? '<button class="btn btn-success ver-ok" data-uid="' + v.id + '"><i class="fa fa-check"></i> Подтвердить</button>' +
+                      '<button class="btn btn-outline-danger ver-no" data-uid="' + v.id + '"><i class="fa fa-times"></i> Отклонить</button>'
+                    : '<button class="btn btn-outline-danger ver-no" data-uid="' + v.id + '"><i class="fa fa-times"></i> Снять верификацию</button>';
+                return '<div class="am-verify" id="v' + v.id + '">' +
+                    '<div class="am-selfie"><img class="am-zoom" src="' + esc(v.verify_file) + '" alt=""></div>' +
+                    '<div class="am-compare">' + ph + '</div>' +
+                    '<div class="am-verify-actions">' + user_cell(v.id, v.name, '', 0, (GENDER_ICON[v.gender] || '') + ' ' + v.age + ' · ' + esc(v.city)) +
+                    '<div class="am-sub">рег. ' + dt(v.created_at) + (parseInt(v.reports_count) ? ' · <b style="color:#e55353;">жалоб ' + v.reports_count + '</b>' : '') + '</div>' + acts + '</div></div>';
+            }
+        });
+        list.reload();
+
+        $('#ver-tabs li').on('click', function () {
+            $('#ver-tabs li').removeClass('active'); $(this).addClass('active');
+            vstatus = parseInt($(this).data("status"));
+            list.reload();
+        });
+        $(document).on('click', '.ver-ok', function () {
+            var u = $(this).data('uid');
+            post('/control/verification/decide', { uid: u, verified: 2 }, function () { $('#v' + u).slideUp(150); message_ok('Подтверждён'); $('.q-count').html(Math.max(0, parseInt($('.q-count').text()) - 1)); }, this);
+        });
+        $(document).on('click', '.ver-no', function () {
+            var u = $(this).data('uid');
+            confirm_action({ title: 'Отклонить селфи?', danger: true, ok: 'Отклонить', reason: true, reasonPlaceholder: 'Не совпадает лицо, фото экрана…', message: 'Селфи удалится, галочки не будет.' },
+                function (reason) { post('/control/verification/decide', { uid: u, verified: 0, reason: reason }, function () { $('#v' + u).slideUp(150); message_ok('Отклонено'); }); });
+        });
+    });
+</script>

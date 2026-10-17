@@ -127,7 +127,8 @@ type DTO struct {
 }
 
 // goingNotBlocked — исключить тех, с кем у :me блокировка (в любую сторону). Колонка — g.user_id.
-const goingNotBlocked = ` AND g.user_id NOT IN (SELECT blocked_id FROM {{blocks}} WHERE blocker_id = :me UNION SELECT blocker_id FROM {{blocks}} WHERE blocked_id = :me)`
+// Заблокированные админкой (users.banned) — тоже.
+const goingNotBlocked = ` AND g.user_id NOT IN (SELECT blocked_id FROM {{blocks}} WHERE blocker_id = :me UNION SELECT blocker_id FROM {{blocks}} WHERE blocked_id = :me UNION SELECT id FROM {{users}} WHERE banned = 1)`
 
 // DTOs собирает карточки событий пачкой: на любой длины список — 4 запроса (кто сколько идёт, иду ли я,
 // лица участников, организаторы), а не 4 на каждое событие.
@@ -219,7 +220,8 @@ func firstPhotos(ids []int64) map[int64]string {
 func Nearby(me *users.User, days int, now time.Time) []*Meetup {
 	days = max(1, min(days, 30))
 	km := float64(max(me.MaxKm, 30))
-	q := sel + ` WHERE m.ends_at > :now AND m.starts_at < :until`
+	// события заблокированного организатора не показываем
+	q := sel + ` WHERE m.ends_at > :now AND m.starts_at < :until AND (h.id IS NULL OR h.banned = 0)`
 	p := db.P{":now": now, ":until": now.Add(time.Duration(days) * 24 * time.Hour)}
 	if me.Lat != 0 || me.Lng != 0 {
 		// грубая рамка по координатам прямо в базе, точное расстояние — ниже

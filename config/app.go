@@ -4,7 +4,9 @@ package config
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"badoo/commands"
 	"badoo/components/auth"
@@ -12,6 +14,7 @@ import (
 	"badoo/components/push"
 	"badoo/components/users"
 	"badoo/controllers"
+	"badoo/modules/control"
 
 	"whales.team/go1"
 	"whales.team/go1/config"
@@ -70,6 +73,8 @@ var App = go1.Config{
 		admin.New(admin.Config{Title: "Amura", Role: "admin"}),
 		// Фото анкет — общий бакет S3 проектов, папка S3_PREFIX (badoo/prod/); без S3_KEY — локально в web/uploads.
 		files.New(files.Config{Storage: photoStorage(), Admin: true}),
+		// Админка /control (как в StockGo1): дашборд, пользователи, переписка, жалобы, верификация, фото, встречи, права.
+		control.New(),
 	},
 	Params: map[string]any{
 		// Вход только через Neuronet (как wealthbook.app/signin): почта → пароль / код из письма → регистрация.
@@ -188,6 +193,10 @@ var App = go1.Config{
 		// Только явные правила выше: без этого любой экшен открыт по GET как /controller/action, и ссылка
 		// вида /people/block?id=5 срабатывает с cookie (CSRF ядро проверяет лишь не-GET). make test → routes --check.
 		a.Server.Router.EnableDefaultRouting = false
+
+		// версия статики админки: {{asset "/theme/adm/css/main.css"}} → …?v=<запуск>: после выкладки — свежие файлы
+		assetVersion := strconv.FormatInt(time.Now().Unix(), 36)
+		a.Server.Views.AddFunc("asset", func(path string) string { return path + "?v=" + assetVersion })
 		// Push: событие ушло человеку без открытой ленты (hub) → задача push.send в очереди → воркер шлёт в Expo.
 		push.Register()
 		hub.Offline = push.Notify

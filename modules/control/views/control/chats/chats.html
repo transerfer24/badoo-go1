@@ -1,0 +1,101 @@
+{{.View.SetTitle "Переписка"}}
+
+<section style="padding-top: 16px;">
+    <ul class="nav-tabs-si" id="chat-tabs" style="margin-bottom:12px;">
+        <li class="active" data-tab="tab-pairs"><a href="#">Диалоги</a></li>
+        <li data-tab="tab-search"><a href="#">Поиск по сообщениям</a></li>
+    </ul>
+    <form id="filters" class="am-filters" autocomplete="off">
+        <input type="hidden" name="uid" value="{{if .uid}}{{.uid}}{{end}}">
+        <div class="form-group am-wide">
+            <label>Участник</label>
+            <input name="user" type="search" class="form-control" placeholder="Имя, почта или #id одного из двоих">
+        </div>
+        <div class="form-group am-wide">
+            <label>Текст в переписке</label>
+            <input name="text" type="search" class="form-control" placeholder="Например: telegram, whatsapp, деньги">
+        </div>
+        <div class="form-group">
+            <label>Сообщения</label>
+            <select name="empty" class="form-control">
+                <option value="0">Есть переписка</option>
+                <option value="">Все пары</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Активность</label>
+            <select name="period" class="form-control">
+                <option value="">Когда угодно</option>
+                <option value="1h">За час</option>
+                <option value="24h">За сутки</option>
+                <option value="7d">За неделю</option>
+                <option value="30d">За 30 дней</option>
+            </select>
+        </div>
+    </form>
+    <form id="search_form" class="am-filters" autocomplete="off" style="display:none;">
+        <div class="form-group am-wide">
+            <label>Текст сообщения (от 2 символов)</label>
+            <input name="text" type="search" class="form-control" placeholder="Ищем по всем диалогам: ссылки, контакты, оскорбления">
+        </div>
+    </form>
+    {{if .uid}}<p style="margin:10px 0 0;font-size:13px;">Только диалоги пользователя <a href="/control/users/view?uid={{.uid}}">#{{.uid}}</a> · <a href="/control/chats">все диалоги</a></p>{{end}}
+</section>
+
+<section style="min-height: 700px;" id="tab-pairs">
+    <h4 style="margin-bottom:10px;">Диалоги (<span class="chats-count">0</span>)</h4>
+    <table class="border--round table--alternate-row">
+        <thead><tr><th>Пара</th><th></th><th>Последнее сообщение</th><th class="text-center">Сообщений</th><th>Активность</th><th></th></tr></thead>
+        <tbody id="chats_result"></tbody>
+    </table>
+</section>
+
+<section style="min-height: 700px; display:none;" id="tab-search">
+    <h4 style="margin-bottom:10px;">Найдено сообщений: <span class="msgs-count">0</span></h4>
+    <table class="border--round table--alternate-row">
+        <thead><tr><th>Кто написал</th><th>Сообщение</th><th>Когда</th><th></th></tr></thead>
+        <tbody id="msgs_result"></tbody>
+    </table>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var chats, msgs;
+    $(function () {
+        filters_from_url('#filters');
+        chats = scroll_list({
+            url: '/control/chats/get-chats', tbody: '#chats_result', cols: 6, count: '.chats-count',
+            data: function () { var d = form_data('#filters'); filters_to_url(d); return d; },
+            row: function (v) {
+                var who = parseInt(v.last_sender) === parseInt(v.a_id) ? v.a_name : v.b_name;
+                var last = v.last_body ? '<span class="am-sub">' + esc(who) + ':</span> ' + esc(strToDot(v.last_body, 90)) : '<span style="color:#999;">не писали</span>';
+                return '<tr><td>' + user_cell(v.a_id, v.a_name, v.a_photo, v.a_banned) + '</td><td>' + user_cell(v.b_id, v.b_name, v.b_photo, v.b_banned) + '</td>' +
+                    '<td>' + last + '</td><td class="text-center">' + v.messages + '</td><td style="white-space:nowrap;">' + ago(v.last_at) + '</td>' +
+                    '<td><a class="btn btn-sm btn-primary" href="/control/chats/view?id=' + v.id + '"><i class="fa fa-comments"></i></a></td></tr>';
+            }
+        });
+        msgs = scroll_list({
+            url: '/control/chats/search-messages', tbody: '#msgs_result', cols: 4, count: '.msgs-count',
+            data: function () { return form_data('#search_form'); },
+            row: function (v) {
+                return '<tr><td>' + user_link(v.sender_id, v.sender_name, v.sender_banned) + '</td><td style="white-space:pre-wrap;">' + esc(v.body) + '</td>' +
+                    '<td style="white-space:nowrap;">' + dt(v.created_at) + '</td><td><a class="btn btn-sm btn-primary" href="/control/chats/view?id=' + v.match_id + '#m' + v.id + '"><i class="fa fa-comments"></i></a></td></tr>';
+            }
+        });
+        chats.reload();
+
+        var timer = null;
+        $('#filters').on('input', 'input[type=search]', function () { clearTimeout(timer); timer = setTimeout(chats.reload, 400); });
+        $('#filters').on('change', 'select', chats.reload);
+        $('#search_form').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(msgs.reload, 400); });
+        $('#filters, #search_form').on('submit', function (e) { e.preventDefault(); });
+
+        $('#chat-tabs li').on('click', function () {
+            var tab = $(this).data('tab');
+            $('#chat-tabs li').removeClass('active'); $(this).addClass('active');
+            chats.stop(); msgs.stop();
+            $('#tab-pairs, #tab-search').hide(); $('#' + tab).show();
+            $('#filters').toggle(tab === 'tab-pairs'); $('#search_form').toggle(tab === 'tab-search');
+            if (tab === 'tab-pairs') chats.reload(); else $('#msgs_result').html(empty_row(4, 'Введите текст'));
+        });
+    });
+</script>

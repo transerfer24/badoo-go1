@@ -1,0 +1,206 @@
+/* Лейаут админки /control — стили из modules/control/views/layouts/main_coreui.php payment.surfer.team (были инлайн в <style>). */
+        /* ── Layout ── */
+        html, body { height: 100%; margin: 0; padding: 0; }
+        #app-layout { display: flex; flex-direction: row; min-height: 100vh; }
+        #app-layout > .c-sidebar { flex: 0 0 256px; width: 256px; }
+        #app-layout > .c-wrapper { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .c-body { flex: 1; background: #ebedef; }
+        .c-main { padding: 24px; }
+
+        /* ── Content card ── */
+        .c-main > .container-fluid { padding: 0; }
+        .c-main section {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.08);
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+        .c-main section:first-of-type {
+            padding: 14px 20px;
+            margin-bottom: 12px;
+        }
+        .c-main section h3, .c-main section h4 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #3c4b64;
+            margin-bottom: 16px;
+        }
+
+        /* ── Tables ── */
+        .table-responsive-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; }
+        .border--round { border-radius: 6px; overflow: hidden; }
+        table th {
+            background: #3c4b64;
+            color: #fff;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: left;
+            white-space: nowrap;
+        }
+        table td {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #3c4b64;
+            border-bottom: 1px solid #d8dbe0;
+            vertical-align: middle !important;
+        }
+        table.table--alternate-row tr:nth-child(even) td { background: #f8f9fa; }
+        table tr:hover td { background: #eef1f6; }
+        @media (max-width: 768px) {
+            .c-main { padding: 12px; }
+            .c-main section { padding: 14px; }
+            table th, table td { padding: 8px 10px; font-size: 12px; }
+        }
+
+        /* ── Stack Interface tabs → Bootstrap-like tabs ── */
+        ul.tabs { display: none !important; }
+        .tabs-container > .tab__content { display: none; }
+        .tabs-container > .tab__content.active { display: block; }
+        ul.nav-tabs-si { display: flex; list-style: none; padding: 0; margin: 0 0 16px; border-bottom: 2px solid #d8dbe0; }
+        ul.nav-tabs-si li { margin-right: 4px; }
+        ul.nav-tabs-si li a {
+            display: block; padding: 8px 16px; border-radius: 4px 4px 0 0;
+            font-size: 13px; font-weight: 600; color: #768192; text-decoration: none;
+            border: 1px solid transparent; border-bottom: none; margin-bottom: -2px;
+        }
+        ul.nav-tabs-si li.active a, ul.nav-tabs-si li a:hover {
+            color: #3c4b64; background: #fff; border-color: #d8dbe0;
+        }
+
+        /* ── Toggle switch ── */
+        .input-checkbox { display: inline-block; }
+        .input-checkbox--switch { display: inline-flex; align-items: center; }
+        .input-checkbox--switch input[type="checkbox"] {
+            position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
+        }
+        .input-checkbox--switch label {
+            display: inline-block; width: 42px; height: 24px; background: #ccc;
+            border-radius: 12px; cursor: pointer; position: relative; transition: background .2s;
+            margin: 0; flex-shrink: 0;
+        }
+        .input-checkbox--switch label::after {
+            content: ''; position: absolute; left: 3px; top: 3px;
+            width: 18px; height: 18px; background: #fff;
+            border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .2s;
+        }
+        .input-checkbox--switch input[type="checkbox"]:checked + label { background: #2eb85c; }
+        .input-checkbox--switch input[type="checkbox"]:checked + label::after { left: 21px; }
+        input[type="checkbox"].form-check-input { width: 16px; height: 16px; cursor: pointer; }
+
+        /* ── Фильтры ── */
+        .filter-row {
+            display: flex !important; flex-wrap: wrap; gap: 10px;
+            align-items: center; margin: 0 !important;
+        }
+        .filter-row > * { flex: 0 0 auto !important; width: auto !important; max-width: none !important; padding: 0 !important; float: none !important; }
+        .filter-row .container { padding: 0; max-width: none; }
+        .filter-row .input-select, .filter-row .btn-group { display: flex; position: relative; }
+        .filter-row .form-control,
+        .filter-row select,
+        .filter-row input[type="text"],
+        .filter-row input[type="search"] {
+            height: 36px !important; min-width: 160px; max-width: 280px;
+            border: 1px solid #d8dbe0!important; border-radius: 4px;
+            padding: 0 12px !important; font-size: 13px; color: #3c4b64;
+            background-color: #fff; outline: none; width: auto; box-sizing: border-box; line-height: 36px;
+        }
+        .filter-row select:not(.select2-hidden-accessible) {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            padding-right: 32px !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236c757d' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 10px center; cursor: pointer;
+        }
+        .filter-row .select2-container { min-width: 160px; max-width: 280px; }
+        .filter-row .select2-selection--single { height: 36px !important; border: 1px solid #d8dbe0 !important; border-radius: 4px !important; display: flex; align-items: center; }
+        .filter-row .select2-selection__rendered { line-height: 36px !important; padding: 0 12px !important; }
+        .filter-row .select2-selection__arrow { height: 36px !important; }
+        .filter-row .form-control:focus, .filter-row select:focus { border-color: #958bef !important; box-shadow: 0 0 0 2px rgba(50,31,219,.15); }
+        .filter-row .form-control-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #aaa; }
+        .has-filter-row { padding: 12px 20px !important; }
+        .has-filter-row .container { padding: 0; max-width: none; }
+
+        /* ── Buttons ── */
+        .btn--primary { background: #321fdb; color: #fff; border-color: #321fdb; }
+        .btn--sm { padding: 6px 14px; font-size: 13px; border-radius: 4px; }
+        .btn i { color: #fff !important; }
+        /* ── BootstrapDialog: сброс раздутых margin у кнопок из main.css ── */
+        /* main.css задаёт .bootstrap-dialog .btn { margin: 20px 0 !important }   */
+        /* В BS4 modal-content — flex-column, body flex:1 1 auto — body растягивается */
+        .bootstrap-dialog .modal-footer .btn,
+        .bootstrap-dialog .bootstrap-dialog-footer-buttons .btn {
+            margin: 0 4px !important;
+        }
+        /* Нормализация формы внутри модалок */
+        .bootstrap-dialog .modal-body {
+            flex: 0 1 auto !important;
+        }
+        .bootstrap-dialog .modal-body .row {
+            align-items: flex-start;
+            margin-bottom: 0;
+        }
+        .bootstrap-dialog .modal-body .form-group {
+            margin-bottom: 15px;
+        }
+        .bootstrap-dialog .modal-body .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #3c4b64;
+        }
+        .bootstrap-dialog .modal-body .form-control {
+            height: 36px;
+            padding: 6px 10px;
+            font-size: 13px;
+            border: 1px solid #d8dbe0;
+            border-radius: 4px;
+        }
+        .bootstrap-dialog .modal-body select.form-control {
+            height: 36px;
+        }
+
+        .btn.btn--primary-1 { background: #321fdb; border-color: #321fdb; color: #fff; }
+        .btn.btn--primary-1:hover { background: #2819c2; border-color: #2819c2; color: #fff; }
+        .btn.btn--primary-1:active { background: #2415a8; border-color: #2415a8; }
+        .btn.btn--primary-1:disabled, .btn.btn--primary-1.disabled { opacity: .65; }
+        .btn.btn--secondary { background: #6c757d; border-color: #6c757d; color: #fff; }
+        .btn.btn--secondary:hover { background: #5a6268; border-color: #5a6268; color: #fff; }
+        .bootstrap-dialog .modal-footer { padding: 12px 20px; gap: 8px; display: flex; justify-content: flex-end; }
+
+        /* ── Footer ── */
+        .c-footer { background: #fff; border-top: 1px solid #d8dbe0; padding: 12px 24px; display: flex; justify-content: space-between; font-size: 13px; color: #768192; }
+        .c-footer a { color: #768192; text-decoration: none; }
+        .c-footer a:hover { color: #3c4b64; }
+
+        /* ── Тёмная тема ── */
+        .c-dark-theme body, .c-dark-theme .c-body { background: #1e2029; }
+        .c-dark-theme .c-header { background: #282c34 !important; border-color: #3a3f50 !important; }
+        .c-dark-theme .c-header-nav-link,
+        .c-dark-theme .c-header-nav-link:hover { color: #c8ccd4 !important; }
+        .c-dark-theme #theme-toggle { color: #c8ccd4 !important; }
+        .c-dark-theme .c-main section { background: #282c34; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        .c-dark-theme .c-main section h3,
+        .c-dark-theme .c-main section h4 { color: #c8ccd4; }
+        .c-dark-theme table td { background: #282c34 !important; color: #c8ccd4 !important; border-color: #3a3f50 !important; }
+        .c-dark-theme table.table--alternate-row tr:nth-child(even) td { background: #2e3240 !important; }
+        .c-dark-theme table tr:hover td { background: #363b4d !important; }
+        .c-dark-theme .form-control,
+        .c-dark-theme select,
+        .c-dark-theme input[type="text"],
+        .c-dark-theme input[type="search"] { background: #333644 !important; border-color: #3a3f50 !important; color: #c8ccd4 !important; }
+        .c-dark-theme .filter-row select:not(.select2-hidden-accessible) { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23c8ccd4' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") !important; }
+        .c-dark-theme .nav-tabs-si { border-color: #3a3f50 !important; }
+        .c-dark-theme .nav-tabs-si li a { color: #8a9ab0 !important; }
+        .c-dark-theme .nav-tabs-si li.active a,
+        .c-dark-theme .nav-tabs-si li a:hover { color: #c8ccd4 !important; background: #282c34 !important; border-color: #3a3f50 !important; }
+        .c-dark-theme .c-footer { background: #282c34 !important; border-color: #3a3f50 !important; color: #8a9ab0; }
+        .c-dark-theme .c-footer a { color: #8a9ab0 !important; }
+        .c-dark-theme .c-footer a:hover { color: #c8ccd4 !important; }
+        .c-dark-theme .bootstrap-dialog .modal-content { background: #282c34; color: #c8ccd4; }
+        .c-dark-theme .bootstrap-dialog .modal-header { border-color: #3a3f50; }
+        .c-dark-theme .bootstrap-dialog .modal-footer { border-color: #3a3f50; background: #282c34; }
+        .c-dark-theme code { background: #333644; color: #e06c75; }
+        .c-dark-theme .tab__content { color: #c8ccd4; }

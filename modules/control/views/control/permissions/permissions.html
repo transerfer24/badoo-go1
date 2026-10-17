@@ -1,0 +1,310 @@
+{{.View.SetTitle "Права"}}
+
+<section style="padding-top: 20px; min-height: 700px;">
+
+        <ul class="nav-tabs-si" id="perm-tabs">
+            <li class="active" data-tab="tab-admins"><a href="#">Админы</a></li>
+            <li data-tab="tab-sections"><a href="#">Разделы</a></li>
+        </ul>
+
+        <!-- ── Админы ── -->
+        <div class="tab__content active" id="tab-admins">
+            <div class="row">
+                <div class="col-md-5">
+                    <div style="display:flex; gap:8px; margin-bottom:12px;">
+                        <input id="search" type="search" class="form-control" placeholder="Поиск админа...">
+                        <button class="btn btn--primary btn--sm" id="add-admin-btn" style="white-space:nowrap;">+ Админ</button>
+                    </div>
+                    <h4 style="margin:0 0 10px;">Админы (<span class="admins-count">0</span>)</h4>
+                    <table class="border--round table--alternate-row">
+                        <thead><tr><th>Имя</th><th class="text-center">Разделов</th></tr></thead>
+                        <tbody id="admins_result"></tbody>
+                    </table>
+                </div>
+                <div class="col-md-7">
+                    <div id="perm_panel" style="color:#999;padding:20px 0;">Выберите админа слева или добавьте нового.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Разделы ── -->
+        <div class="tab__content" id="tab-sections" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div>
+                    <h4 style="margin:0;">Разделы админки <span class="sections-count" style="font-size:14px;color:#768192;"></span></h4>
+                    <p style="color:#768192;font-size:13px;margin:4px 0 0;">Раздел = пункт меню и адрес <code>/control/&lt;раздел&gt;</code>; код раздела — контроллер <code>modules/control/&lt;раздел&gt;.go</code>. Новый раздел сразу открывается суперадминам.</p>
+                </div>
+                <div style="white-space:nowrap;">
+                    <button class="btn btn--secondary btn--sm" id="add-category-btn">+ Группа меню</button>
+                    <button class="btn btn--primary btn--sm" id="add-section-btn">+ Раздел</button>
+                </div>
+            </div>
+            <table class="border--round table--alternate-row" style="width:100%;">
+                <thead>
+                <tr>
+                    <th style="width:40px;">ID</th>
+                    <th>Адрес</th>
+                    <th>Название</th>
+                    <th>Группа</th>
+                    <th class="text-center">Порядок</th>
+                    <th class="text-center">Админов</th>
+                    <th class="text-center">Статус</th>
+                    <th class="text-center" style="width:80px;"></th>
+                </tr>
+                </thead>
+                <tbody id="sections_result"><tr><td colspan="8" class="text-center" style="color:#999;">Загрузка...</td></tr></tbody>
+            </table>
+        </div>
+
+</section>
+
+<script nonce="{{.Nonce}}">
+    var page = 1, req = null, timer = null, current_uid = {{.uid}}, myUid = {{.User.Id}};
+    var sections = [], categories = [];
+
+    $(document).ready(function () {
+        get_admins(true);
+        if (current_uid > 0) get_permissions(current_uid);
+
+        $('#perm-tabs li').on('click', function (e) {
+            e.preventDefault();
+            $(document).unbind('scroll.admins');
+            $('#perm-tabs li').removeClass('active');
+            $(this).addClass('active');
+            $('.tab__content').hide();
+            $('#' + $(this).data('tab')).show();
+            if ($(this).data('tab') === 'tab-sections') get_sections();
+            else get_admins(true);
+        });
+
+        $('#search').keyup(function () {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(function () { get_admins(true); }, 400);
+        });
+
+        $(document).on('click', '[data-admin]', function () { get_permissions(parseInt($(this).data('admin'))); });
+
+        $(document).on('change', '.perm-switch', function () {
+            var $el = $(this), on = $el.is(':checked') ? 1 : 0;
+            $el.prop('disabled', true);
+            $.ajax({
+                url: '/control/permissions/change-status', type: 'POST', dataType: 'json',
+                data: { uid: current_uid, id: $el.data('id'), status: on },
+                success: function (r) {
+                    if (r.status === 200) { get_admins(true); load_history(current_uid); }
+                    else { $el.prop('checked', !on); message_info(r.message || 'Ошибка'); }
+                },
+                error: function () { $el.prop('checked', !on); },
+                complete: function () { $el.prop('disabled', false); }
+            });
+        });
+
+        $('#add-admin-btn').on('click', function () {
+            BootstrapDialog.show({
+                title: 'Добавить админа', animate: false, closable: true, nl2br: false,
+                message: '<div class="form-group"><label>Пользователь</label><select class="form-control" id="new_admin" style="width:100%;"><option value=""></option></select></div>' +
+                         '<p style="font-size:12px;color:#768192;margin:0;">Затем включите ему нужные разделы.</p>',
+                onshown: function (dlg) {
+                    $('#new_admin').select2({
+                        dropdownParent: dlg.getModalBody(), placeholder: 'Имя, почта или id...', minimumInputLength: 1,
+                        ajax: { url: '/control/permissions/search-user', type: 'POST', dataType: 'json', delay: 300,
+                            data: function (p) { return { q: p.term }; },
+                            processResults: function (d) { return { results: d.items || [] }; } }
+                    });
+                },
+                buttons: [{
+                    label: 'Открыть права', cssClass: 'btn btn--primary-1',
+                    action: function (dlg) {
+                        var id = parseInt($('#new_admin').val()) || 0;
+                        if (!id) { message_info('Выберите пользователя'); return; }
+                        dlg.close();
+                        get_permissions(id);
+                    }
+                }, { label: 'Закрыть', cssClass: 'btn btn--secondary', action: function (d) { d.close(); } }]
+            });
+        });
+
+        $('#add-section-btn').on('click', function () { open_section_modal(null); });
+        $(document).on('click', '.section-edit-btn', function () {
+            var id = parseInt($(this).data('id'));
+            open_section_modal(_.find(sections, function (s) { return parseInt(s.id) === id; }));
+        });
+        $('#add-category-btn').on('click', function () { open_category_modal(); });
+    });
+
+    /* ── Админы ── */
+
+    function admins_at_bottom() {
+        var el = document.getElementById('admins_result');
+        if (!el || !el.lastElementChild) return false;
+        return el.lastElementChild.getBoundingClientRect().bottom <= window.innerHeight + 20;
+    }
+
+    function get_admins(filter) {
+        if (!admins_at_bottom() && !filter) return;
+        $(document).unbind('scroll.admins');
+        page = filter ? 1 : page + 1;
+        if (req !== null) req.abort();
+        if (filter) $('#admins_result').empty();
+        req = $.ajax({
+            url: '/control/permissions/get-users', type: 'POST', dataType: 'json',
+            data: { page: page, search: $('#search').val() },
+            success: function (r) {
+                if (r.status !== 200) { $(document).unbind('scroll.admins'); return; }
+                $('.admins-count').html(r.count || 0);
+                if (r.items && r.items.length > 0) {
+                    $.each(r.items, function (i, v) {
+                        var name = he.encode(v.name || '') || ('uid ' + v.uid);
+                        $('#admins_result').append('<tr data-admin="' + v.uid + '" style="cursor:pointer;' + (parseInt(v.uid) === current_uid ? 'font-weight:600;' : '') + '">' +
+                            '<td>' + name + (parseInt(v.is_super) ? ' <span class="perm-super">суперадмин</span>' : '') + (parseInt(v.banned) ? ' ' + pill('заблокирован', 'red') : '') +
+                            '<div style="font-size:11px;color:#768192;">' + he.encode(v.email || '') + ' · ' + ago(v.last_seen) + '</div></td>' +
+                            '<td class="text-center">' + v.rules + '</td></tr>');
+                    });
+                    $(document).bind('scroll.admins', _.debounce(function () { get_admins(); }, 50));
+                } else {
+                    if (filter) $('#admins_result').html('<tr class="no-result"><td colspan="2" class="text-center" style="color:#999;">Нет админов</td></tr>');
+                    $(document).unbind('scroll.admins');
+                }
+            },
+            complete: function () { req = null; }
+        });
+    }
+
+    function get_permissions(uid) {
+        current_uid = uid;
+        $('#perm_panel').html('<p style="color:#999;">Загрузка...</p>');
+        $.ajax({
+            url: '/control/permissions/get-user-permissions', type: 'POST', dataType: 'json', data: { uid: uid },
+            success: function (r) {
+                if (r.status !== 200) { $('#perm_panel').html('<p style="color:#e55353;">' + he.encode((r.errors && r.errors.modal_message) || 'Ошибка') + '</p>'); return; }
+                var u = r.user, name = he.encode(u.name || '') || ('uid ' + u.uid);
+                var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                    '<h4 style="margin:0;">' + name + (r.is_super ? ' <span class="perm-super">суперадмин</span>' : '') + '</h4>' +
+                    '<a class="btn btn--secondary btn--sm" href="/control/users/view?uid=' + u.uid + '">Карточка</a></div>' +
+                    (r.is_super ? '<p style="font-size:12px;color:#768192;">Права суперадмина не меняются из админки, новые разделы открываются ему сами.</p>' : '') +
+                    '<table class="border--round table--alternate-row" style="width:100%;margin-bottom:24px;"><thead><tr><th>Раздел</th><th>Адрес</th><th class="text-center" style="width:90px;">Доступ</th></tr></thead><tbody>';
+                $.each(r.items || [], function (i, a) {
+                    var disabled = r.is_super || parseInt(a.locked) === 1 || (uid === myUid && a.action === 'permissions');
+                    html += '<tr><td>' + he.encode(a.name) + (a.cat_name ? ' <span style="color:#768192;font-size:11px;">' + he.encode(a.cat_name) + '</span>' : '') + '</td>' +
+                        '<td><code>/control/' + he.encode(a.action === 'index' ? '' : a.action) + '</code></td>' +
+                        '<td class="text-center"><div class="input-checkbox input-checkbox--switch">' +
+                        '<input type="checkbox" class="perm-switch" id="perm_' + a.id + '" data-id="' + a.id + '"' + (parseInt(a.is_active) ? ' checked' : '') + (disabled ? ' disabled' : '') + '>' +
+                        '<label for="perm_' + a.id + '"></label></div></td></tr>';
+                });
+                html += '</tbody></table><h4 style="margin:0 0 10px;">История изменений</h4><div id="perm_history" style="font-size:13px;color:#999;">Загрузка...</div>';
+                $('#perm_panel').html(html);
+                load_history(uid);
+            }
+        });
+    }
+
+    function load_history(uid) {
+        $.ajax({
+            url: '/control/permissions/get-history', type: 'POST', dataType: 'json', data: { uid: uid },
+            success: function (r) {
+                if (r.status !== 200) return;
+                if (!r.items || !r.items.length) { $('#perm_history').html('Изменений не было'); return; }
+                var html = '<table class="border--round" style="width:100%;"><tbody>';
+                $.each(r.items, function (i, h) {
+                    html += '<tr><td style="white-space:nowrap;">' + dt(h.date) + '</td>' +
+                        '<td>' + (parseInt(h.type) === 1 ? '<span style="color:#2eb85c;">включён</span>' : '<span style="color:#e55353;">выключен</span>') + ' · ' + he.encode(h.action_name || '—') + '</td>' +
+                        '<td style="color:#768192;">' + he.encode(h.parent_name || ('uid ' + h.parent_uid)) + '</td></tr>';
+                });
+                $('#perm_history').html(html + '</tbody></table>');
+            }
+        });
+    }
+
+    /* ── Разделы ── */
+
+    function get_sections() {
+        $.ajax({
+            url: '/control/permissions/get-sections', type: 'POST', dataType: 'json',
+            success: function (r) {
+                if (r.status !== 200) return;
+                sections = r.items || []; categories = r.categories || [];
+                var rows = '';
+                $.each(sections, function (i, s) {
+                    rows += '<tr><td>' + s.id + '</td>' +
+                        '<td><code>/control/' + he.encode(s.action === 'index' ? '' : s.action) + '</code></td>' +
+                        '<td>' + he.encode(s.name) + (parseInt(s.locked) ? ' <i class="fa fa-lock" title="Не выдаётся из админки" style="color:#768192;"></i>' : '') + '</td>' +
+                        '<td>' + he.encode(s.cat_name || '—') + '</td>' +
+                        '<td class="text-center">' + s.priority + '</td>' +
+                        '<td class="text-center">' + s.admins + '</td>' +
+                        '<td class="text-center">' + (parseInt(s.status) ? '<span style="color:#2eb85c;">Активен</span>' : '<span style="color:#768192;">Откл.</span>') + '</td>' +
+                        '<td class="text-center"><a href="#" class="btn btn-icons-small btn-primary section-edit-btn" data-id="' + s.id + '"><i class="fa fa-pencil"></i></a></td></tr>';
+                });
+                $('#sections_result').html(rows || '<tr><td colspan="8" class="text-center" style="color:#999;">Нет разделов</td></tr>');
+                $('.sections-count').html('(' + sections.length + ')');
+            }
+        });
+    }
+
+    function open_section_modal(s) {
+        var isEdit = !!s;
+        var catOptions = '<option value="0">— без группы —</option>' + $.map(categories, function (c) {
+            return '<option value="' + c.id + '"' + (isEdit && parseInt(s.cid) === parseInt(c.id) ? ' selected' : '') + '>' + he.encode(c.name) + '</option>';
+        }).join('');
+        var msg = '<div class="boxed boxed--sm">' +
+            '<div class="form-group"><label>Адрес <span style="color:#e55353;">*</span> <small style="color:#768192;">/control/…, латиница и дефис</small></label>' +
+                '<input type="text" class="form-control" id="sec_action" maxlength="30" value="' + (isEdit ? he.encode(s.action) : '') + '"' + (isEdit ? ' disabled' : '') + '></div>' +
+            '<div class="form-group"><label>Название в меню <span style="color:#e55353;">*</span></label>' +
+                '<input type="text" class="form-control" id="sec_name" maxlength="30" value="' + (isEdit ? he.encode(s.name) : '') + '"></div>' +
+            '<div class="row"><div class="col-md-6"><div class="form-group"><label>Группа меню</label><select class="form-control" id="sec_cid">' + catOptions + '</select></div></div>' +
+                '<div class="col-md-6"><div class="form-group"><label>Порядок <small style="color:#768192;">больше — выше</small></label>' +
+                '<input type="number" class="form-control" id="sec_priority" value="' + (isEdit ? s.priority : 0) + '"></div></div></div>' +
+            '<div class="row"><div class="col-md-6"><div class="form-group"><label>Статус</label><select class="form-control" id="sec_status">' +
+                '<option value="1"' + (!isEdit || parseInt(s.status) ? ' selected' : '') + '>Активен</option><option value="0"' + (isEdit && !parseInt(s.status) ? ' selected' : '') + '>Отключён</option></select></div></div>' +
+                '<div class="col-md-6"><div class="form-group"><label>Выдача</label><select class="form-control" id="sec_locked">' +
+                '<option value="0"' + (!isEdit || !parseInt(s.locked) ? ' selected' : '') + '>Можно выдавать</option><option value="1"' + (isEdit && parseInt(s.locked) ? ' selected' : '') + '>Только суперадминам</option></select></div></div></div>' +
+            '</div>';
+        BootstrapDialog.show({
+            title: isEdit ? 'Раздел «' + he.encode(s.name) + '»' : 'Новый раздел', message: msg, animate: false, closable: true, closeByBackdrop: false, nl2br: false,
+            buttons: [{
+                label: 'Сохранить', cssClass: 'btn btn--primary-1',
+                action: function (dlg) {
+                    var btn = $(this).prop('disabled', true);
+                    $.ajax({
+                        url: '/control/permissions/save-section', type: 'POST', dataType: 'json',
+                        data: { id: isEdit ? s.id : 0, action: isEdit ? s.action : $.trim($('#sec_action').val()), name: $.trim($('#sec_name').val()),
+                                cid: $('#sec_cid').val(), priority: $('#sec_priority').val(), status: $('#sec_status').val(), locked: $('#sec_locked').val() },
+                        success: function (r) {
+                            if (r.status === 200) { dlg.close(); get_sections(); message_ok('Сохранено'); }
+                            else if (r.errors) message_info(r.errors.modal_message || r.errors.action || r.errors.name || r.errors.cid);
+                        },
+                        complete: function () { btn.prop('disabled', false); }
+                    });
+                }
+            }, { label: 'Закрыть', cssClass: 'btn btn--secondary', action: function (d) { d.close(); } }]
+        });
+    }
+
+    function open_category_modal() {
+        BootstrapDialog.show({
+            title: 'Новая группа меню', animate: false, closable: true, nl2br: false,
+            message: '<div class="form-group"><label>Название</label><input type="text" class="form-control" id="cat_name" maxlength="50"></div>' +
+                     '<p style="font-size:12px;color:#768192;margin:0;">Группа — выпадающий пункт меню; разделы попадают в неё через поле «Группа меню».</p>',
+            buttons: [{
+                label: 'Сохранить', cssClass: 'btn btn--primary-1',
+                action: function (dlg) {
+                    $.ajax({
+                        url: '/control/permissions/save-category', type: 'POST', dataType: 'json', data: { name: $.trim($('#cat_name').val()) },
+                        success: function (r) {
+                            if (r.status === 200) { dlg.close(); get_sections(); message_ok('Группа добавлена'); }
+                            else if (r.errors) message_info(r.errors.name);
+                        }
+                    });
+                }
+            }, { label: 'Закрыть', cssClass: 'btn btn--secondary', action: function (d) { d.close(); } }]
+        });
+    }
+</script>
+
+<style>
+    table td { vertical-align: middle; }
+    #perm-tabs { margin-bottom: 20px; }
+    .perm-super { background: #321fdb; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: 600; vertical-align: middle; }
+    .btn-icons-small { padding: 3px 8px; font-size: 12px; }
+    .btn-primary { background: #3d6cb5; color: #fff; border-color: #3d6cb5; }
+    .input-checkbox--switch input[type="checkbox"]:disabled + label { opacity: .5; cursor: not-allowed; }
+</style>

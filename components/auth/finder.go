@@ -30,9 +30,10 @@ func (u User) GetAuthKey() string { return u.AuthKey } // remember-me cookie в�
 
 type Finder struct{}
 
-// FindIdentity — по id из сессии / cookie.
+// FindIdentity — по id из сессии / cookie. Заблокированный в /control (banned = 1) — гость: сайт отправит на /login,
+// API ответит 401, и войти заново он не сможет (neuronet.syncUser).
 func (Finder) FindIdentity(id int64) (web.Identity, error) {
-	row, err := app.Db.CreateCommand("SELECT id, email, name, onboarded, verified, premium_until, auth_key FROM {{users}} WHERE id = :id").
+	row, err := app.Db.CreateCommand("SELECT id, email, name, onboarded, verified, premium_until, auth_key FROM {{users}} WHERE id = :id AND banned = 0").
 		BindValue(":id", id).
 		QueryRow()
 	if err != nil || row == nil {
@@ -46,7 +47,7 @@ func (Finder) FindIdentityByAccessToken(token string) (web.Identity, error) {
 	row, err := app.Db.CreateCommand(`
 		SELECT u.id, u.email, u.name, u.onboarded, u.verified, u.premium_until, u.auth_key
 		FROM {{sessions}} s INNER JOIN {{users}} u ON u.id = s.user_id
-		WHERE s.token = :token AND s.expires_at > :now
+		WHERE s.token = :token AND s.expires_at > :now AND u.banned = 0
 	`).
 		BindValue(":token", token).
 		BindValue(":now", time.Now().UTC()).

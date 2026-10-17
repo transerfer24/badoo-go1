@@ -1,0 +1,125 @@
+
+.btn .badge {
+   position: relative;
+   top: -1px;
+}
+
+.badge-pill {
+    padding-right: .6em;
+    padding-left: .6em;
+    border-radius: 10rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: .25em .4em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: .25rem;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+.badge {
+    background-color: #D1DADE;
+    color: #5E5E5E;
+    font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 600;
+    padding-bottom: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+    text-shadow: none;
+    white-space: nowrap;
+}
+.label-primary,
+.badge-primary {
+    background-color: #679c3a;
+    color: #FFFFFF;
+}
+.label-success,
+.badge-success {
+    background-color: #1c84c6;
+    color: #FFFFFF;
+}
+.label-warning,
+.badge-warning {
+    background-color: #f8ac59;
+    color: #FFFFFF;
+}
+.label-warning-light,
+.badge-warning-light {
+    background-color: #f8ac59;
+    color: #ffffff;
+}
+.label-danger,
+.badge-danger {
+    background-color: #ED5565;
+    color: #FFFFFF;
+}
+.label-info,
+.badge-info {
+    background-color: #679c3a;
+    color: #FFFFFF;
+}
+.label-inverse,
+.badge-inverse {
+    background-color: #262626;
+    color: #FFFFFF;
+}
+.label-white,
+.badge-white {
+    background-color: #FFFFFF;
+    color: #5E5E5E;
+}
+.label-white,
+.badge-disable {
+    background-color: #2A2E36;
+    color: #8B91A0;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.badge-order-status-1 {
+    color: #fff;
+    background-color: #f8ac59;
+}
+
+.badge-order-status-2 {
+    color: #fff;
+    background-color: #679c3a;
+}
+
+.badge-order-status-3 {
+    color: #fff;
+    background-color: purple;
+}
+
+.badge-order-status-4 {
+    color: #fff;
+    background-color: #027bff;;
+}
+
+.badge-order-status-5 {
+    color: #fff;
+    background-color: #087a55;
+}
+
+.badge-order-status-6 {
+    color: #fff;
+    background-color: #c72ba8;
+}
+
+.badge-order-status-7 {
+    color: #fff;
+    background-color: #1c84c6;
+}
+
+.badge-order-status--1, .badge-order-status--2, .badge-order-status--3, .badge-order-status--4 {
+    color: #fff;
+    background-color: #ED5565;
+}

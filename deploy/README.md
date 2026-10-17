@@ -33,6 +33,6 @@ ssh dreampro tail -50 /home/dreampro/whales.team/badoo/app/logs/web.log
 
 ## Переключение приложения
 
-Мобильное приложение ходит на `PROD_URL` в `Badoo/mobile/src/lib/config.ts` (`https://badoo.surfer.team`).
-Когда API v1 на Go1 проходит дым (PLAN.md, этап 7) — меняем на `https://badoo.whales.team`, собираем приложение.
+Сделано 17.10.2026: `PROD_URL` в `Badoo/mobile/src/lib/config.ts` (и `scripts/start.js`, `eas.json`) —
+`https://badoo.whales.team`. `npm start` в `Badoo/mobile` открывает приложение уже против этого бэкенда.
 Старый сервер на hermes1 остаётся до выхода новой сборки у пользователей.

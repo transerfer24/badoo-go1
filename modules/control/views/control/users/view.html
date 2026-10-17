@@ -1,0 +1,398 @@
+{{.View.SetTitle (printf "Пользователь #%d" .uid)}}
+
+<section style="padding-top: 16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <a href="/control/users" class="btn btn--secondary btn--sm"><i class="fa fa-arrow-left"></i></a>
+            <span id="head_avatar"></span>
+            <div>
+                <h4 style="margin:0;" id="head_name">Пользователь #{{.uid}}</h4>
+                <div id="head_badges"></div>
+            </div>
+        </div>
+        <div class="am-actions" id="actions" style="display:none;">
+            <button class="btn btn-danger btn-sm" id="ban-btn"><i class="fa fa-ban"></i> Заблокировать</button>
+            <button class="btn btn-success btn-sm" id="unban-btn" style="display:none;"><i class="fa fa-unlock"></i> Разблокировать</button>
+            <button class="btn btn--secondary btn--sm" id="verify-btn"><i class="fa fa-check"></i> Верификация</button>
+            <button class="btn btn--secondary btn--sm" id="premium-btn"><i class="fa fa-star"></i> Premium</button>
+            <button class="btn btn--secondary btn--sm" id="edit-btn"><i class="fa fa-pencil"></i> Править</button>
+            <button class="btn btn--secondary btn--sm" id="logout-btn" title="Удалить сессии приложения и сбросить вход на сайте"><i class="fa fa-sign-out"></i> Выйти везде</button>
+            <a class="btn btn--secondary btn--sm" id="perm-link" href="/control/permissions?uid={{.uid}}"><i class="fa fa-key"></i> Права</a>
+            {{if .is_super}}<button class="btn btn-outline-danger btn-sm" id="delete-btn"><i class="fa fa-trash"></i> Удалить</button>{{end}}
+        </div>
+    </div>
+</section>
+
+<section style="min-height: 700px;">
+    <ul class="nav-tabs-si" id="user-tabs">
+        <li class="active" data-tab="tab-info"><a href="#">Анкета</a></li>
+        <li data-tab="tab-matches"><a href="#">Пары и переписка <span class="c-matches"></span></a></li>
+        <li data-tab="tab-votes"><a href="#">Симпатии</a></li>
+        <li data-tab="tab-visits"><a href="#">Гости</a></li>
+        <li data-tab="tab-reports"><a href="#">Жалобы и блокировки <span class="c-reports"></span></a></li>
+        <li data-tab="tab-devices"><a href="#">Устройства</a></li>
+        <li data-tab="tab-meetups"><a href="#">Встречи</a></li>
+        <li data-tab="tab-log"><a href="#">Журнал</a></li>
+    </ul>
+
+    <!-- ── Анкета ── -->
+    <div class="tab__content active" id="tab-info">
+        <div id="ban_box"></div>
+        <div class="row">
+            <div class="col-lg-7">
+                <table class="border--round am-kv"><tbody id="info_result">
+                    <tr><td colspan="2" style="text-align:center; color:#999;">Загрузка...</td></tr>
+                </tbody></table>
+            </div>
+            <div class="col-lg-5">
+                <h4>Фото <span class="c-photos" style="font-size:13px;color:#768192;"></span></h4>
+                <div class="am-photos" id="photos_result"></div>
+                <div id="selfie_box" style="margin-top:20px;"></div>
+                <h4 style="margin-top:20px;">Активность</h4>
+                <table class="border--round am-kv"><tbody id="counts_result"></tbody></table>
+                <h4 style="margin-top:20px;">Настройки поиска</h4>
+                <table class="border--round am-kv"><tbody id="prefs_result"></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Пары и переписка ── -->
+    <div class="tab__content" id="tab-matches" style="display:none;">
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Собеседник</th><th>Последнее сообщение</th><th class="text-center">Сообщений</th><th>Пара с</th><th>Активность</th><th></th></tr></thead>
+            <tbody id="matches_result"></tbody>
+        </table>
+    </div>
+
+    <!-- ── Симпатии ── -->
+    <div class="tab__content" id="tab-votes" style="display:none;">
+        <div class="am-filters" style="margin-bottom:12px;" id="votes_filters">
+            <div class="form-group">
+                <label>Чьи</label>
+                <select name="dir" class="form-control"><option value="received">Ему / ей</option><option value="given">Он / она</option></select>
+            </div>
+            <div class="form-group">
+                <label>Голос</label>
+                <select name="liked" class="form-control"><option value="1">❤ Нравится</option><option value="0">✕ Пропуск</option></select>
+            </div>
+            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div style="height:32px;line-height:32px;">Всего: <b class="votes-count">0</b></div></div>
+        </div>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Кто</th><th>Когда</th></tr></thead>
+            <tbody id="votes_result"></tbody>
+        </table>
+    </div>
+
+    <!-- ── Гости ── -->
+    <div class="tab__content" id="tab-visits" style="display:none;">
+        <div class="am-filters" style="margin-bottom:12px;" id="visits_filters">
+            <div class="form-group">
+                <label>Кто</label>
+                <select name="dir" class="form-control"><option value="in">Смотрели его анкету</option><option value="out">Чьи анкеты смотрел</option></select>
+            </div>
+            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div style="height:32px;line-height:32px;">Всего: <b class="visits-count">0</b></div></div>
+        </div>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Кто</th><th>Последний раз</th></tr></thead>
+            <tbody id="visits_result"></tbody>
+        </table>
+    </div>
+
+    <!-- ── Жалобы и блокировки ── -->
+    <div class="tab__content" id="tab-reports" style="display:none;">
+        <h4>Жалобы на него</h4>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Кто пожаловался</th><th>Причина</th><th>Статус</th><th>Когда</th></tr></thead>
+            <tbody id="rep_against"></tbody>
+        </table>
+        <h4 style="margin-top:24px;">Его жалобы</h4>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>На кого</th><th>Причина</th><th>Статус</th><th>Когда</th></tr></thead>
+            <tbody id="rep_from"></tbody>
+        </table>
+        <div class="row" style="margin-top:24px;">
+            <div class="col-md-6"><h4>Его заблокировали</h4><div id="blocked_by"></div></div>
+            <div class="col-md-6"><h4>Он заблокировал</h4><div id="blocks"></div></div>
+        </div>
+    </div>
+
+    <!-- ── Устройства ── -->
+    <div class="tab__content" id="tab-devices" style="display:none;">
+        <h4>Сессии приложения</h4>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Токен</th><th>Платформа</th><th>Вход</th><th>Действует до</th></tr></thead>
+            <tbody id="sessions_result"></tbody>
+        </table>
+        <h4 style="margin-top:24px;">Push-уведомления</h4>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Токен Expo</th><th>Платформа</th><th>С</th></tr></thead>
+            <tbody id="push_result"></tbody>
+        </table>
+        <p style="font-size:12px;color:#768192;margin-top:10px;">Вход на сайте — cookie браузера, отдельно не хранится. «Выйти везде» сбрасывает и его.</p>
+    </div>
+
+    <!-- ── Встречи ── -->
+    <div class="tab__content" id="tab-meetups" style="display:none;">
+        <h4>Организует</h4>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Событие</th><th>Место</th><th>Когда</th><th class="text-center">Идут</th></tr></thead>
+            <tbody id="hosted_result"></tbody>
+        </table>
+        <h4 style="margin-top:24px;">Идёт</h4>
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Событие</th><th>Место</th><th>Когда</th><th>Отметился</th></tr></thead>
+            <tbody id="going_result"></tbody>
+        </table>
+    </div>
+
+    <!-- ── Журнал ── -->
+    <div class="tab__content" id="tab-log" style="display:none;">
+        <table class="border--round table--alternate-row">
+            <thead><tr><th>Когда</th><th>Админ</th><th>Действие</th><th>Подробности</th></tr></thead>
+            <tbody id="log_result"></tbody>
+        </table>
+    </div>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var uid = {{.uid}};
+    var info = null, loaded = {};
+    var lists = {};
+    var REPORT_ST = { 0: pill('новая', 'yellow'), 1: pill('приняты меры', 'red'), 2: pill('отклонена', 'grey') };
+
+    $(function () {
+        get_info();
+
+        $('#user-tabs li').on('click', function (e) {
+            e.preventDefault();
+            var tab = $(this).data('tab');
+            $.each(lists, function (k, l) { l.stop(); });
+            $('#user-tabs li').removeClass('active');
+            $(this).addClass('active');
+            $('.tab__content').hide();
+            $('#' + tab).show();
+            history.replaceState(null, '', '?uid=' + uid + '#' + tab);
+            open_tab(tab);
+        });
+        if (location.hash && $('#user-tabs li[data-tab="' + location.hash.substr(1) + '"]').length) {
+            $('#user-tabs li[data-tab="' + location.hash.substr(1) + '"]').click();
+        }
+
+        $('#votes_filters select').on('change', function () { lists.votes.reload(); });
+        $('#visits_filters select').on('change', function () { lists.visits.reload(); });
+
+        $('#ban-btn').on('click', function () {
+            confirm_action({ title: 'Заблокировать ' + esc(info.name) + '?', danger: true, ok: 'Заблокировать', reason: true,
+                reasonPlaceholder: 'Фейк, спам, оскорбления…',
+                message: 'Не сможет войти ни на сайте, ни в приложении, выйдет на всех устройствах. Анкета пропадёт из колоды, «Рядом», симпатий и чатов у всех. Новые жалобы на него будут закрыты.' },
+                function (reason) { post('/control/users/set-ban', { uid: uid, ban: 1, reason: reason }, function () { message_ok('Заблокирован'); get_info(); }); });
+        });
+        $('#unban-btn').on('click', function () {
+            confirm_action({ title: 'Разблокировать?', ok: 'Разблокировать', message: 'Сможет снова войти через Neuronet, анкета вернётся в выдачу.' },
+                function () { post('/control/users/set-ban', { uid: uid, ban: 0 }, function () { message_ok('Разблокирован'); get_info(); }); });
+        });
+        $('#verify-btn').on('click', verify_dialog);
+        $('#premium-btn').on('click', premium_dialog);
+        $('#edit-btn').on('click', edit_dialog);
+        $('#logout-btn').on('click', function () {
+            confirm_action({ title: 'Выйти на всех устройствах?', message: 'Приложение и сайт попросят войти заново. Аккаунт не блокируется.' },
+                function () { post('/control/users/logout', { uid: uid }, function () { message_ok('Сессии сброшены'); loaded['tab-devices'] = false; }); });
+        });
+        $('#delete-btn').on('click', function () {
+            confirm_action({ title: 'Удалить аккаунт навсегда?', danger: true, ok: 'Удалить', message: 'Анкета, фото, симпатии, пары, вся переписка и встречи пользователя будут удалены без возможности восстановления. Обычно достаточно блокировки.' },
+                function () { post('/control/users/delete-user', { uid: uid }, function () { message_ok('Удалён'); setTimeout(function () { location = '/control/users'; }, 600); }); });
+        });
+
+        $(document).on('click', '.photo-del', function () {
+            var id = $(this).data('id');
+            confirm_action({ title: 'Удалить фото?', danger: true, ok: 'Удалить', message: 'Фото удалится из анкеты и из хранилища.' },
+                function () { post('/control/users/delete-photo', { id: id }, function () { message_ok('Фото удалено'); get_info(); }); });
+        });
+        $(document).on('click', '.photo-main', function () {
+            post('/control/users/main-photo', { id: $(this).data('id') }, function () { get_info(); });
+        });
+    });
+
+    function kv(label, value) { return '<tr><td>' + label + '</td><td>' + (value === '' || value == null ? '—' : value) + '</td></tr>'; }
+
+    function get_info() {
+        post('/control/users/get-user-info', { uid: uid }, function (r) {
+            var v = info = r.item, c = r.counts || {};
+            var banned = parseInt(v.banned) === 1;
+            $('#head_avatar').html(avatar(r.photos.length ? r.photos[0].file : '', v.name, 48));
+            $('#head_name').html(esc(v.name || '(без имени)') + ', ' + (v.age || '—') + ' <span style="font-size:13px;color:#768192;">#' + v.id + '</span>');
+            $('#head_badges').html(user_badges(v) + (r.is_super ? pill('суперадмин', 'blue') : (r.is_admin ? pill('админ', 'blue') : '')));
+            $('#actions').show();
+            $('#ban-btn').toggle(!banned);
+            $('#unban-btn').toggle(banned);
+
+            $('#ban_box').html(banned ? '<div class="am-ban-box"><i class="fa fa-ban"></i> <b>Заблокирован</b> ' + dt(v.banned_at) +
+                (v.banned_by ? ' — ' + user_link(v.banned_by, v.banned_by_name) : '') + (v.ban_reason ? '<br>Причина: ' + esc(v.ban_reason) : '') + '</div>' : '');
+
+            var rows = '';
+            rows += kv('ID', v.id);
+            rows += kv('E-mail', esc(v.email));
+            rows += kv('Neuronet uid', v.neuronet_uid ? esc(v.neuronet_uid) : '<span style="color:#e55353;">не привязан</span>');
+            rows += kv('Имя', esc(v.name));
+            rows += kv('Дата рождения', v.birthdate ? esc(v.birthdate) + ' (' + v.age + ')' : '');
+            rows += kv('Пол', esc(v.gender_label || ''));
+            rows += kv('Ищет', esc({ m: 'Мужчин', f: 'Женщин', any: 'Всех' }[v.seeking] || v.seeking));
+            rows += kv('Цель', esc(v.intent_label || ''));
+            rows += kv('Город', esc(v.city) + (parseFloat(v.lat) ? ' <span class="am-sub">' + parseFloat(v.lat).toFixed(3) + ', ' + parseFloat(v.lng).toFixed(3) + '</span>' : ''));
+            rows += kv('Рост', parseInt(v.height) ? v.height + ' см' : '');
+            rows += kv('Интересы', esc((v.interests || '').split(',').filter(Boolean).join(', ')));
+            rows += kv('О себе', v.bio ? '<div style="white-space:pre-wrap;">' + esc(v.bio) + '</div>' : '');
+            rows += kv('Верификация', ['нет', pill('на проверке', 'yellow'), pill('подтверждён', 'green')][parseInt(v.verified)] || v.verified);
+            rows += kv('Premium', parseInt(v.premium_until) * 1000 > Date.now() ? pill('до ' + dt(v.premium_until, 'DD.MM.YYYY'), 'purple') : (parseInt(v.premium_until) ? 'истёк ' + dt(v.premium_until, 'DD.MM.YYYY') : 'нет'));
+            rows += kv('Невидимка', parseInt(v.invisible) ? 'да' : 'нет');
+            rows += kv('Анкета заполнена', parseInt(v.onboarded) ? 'да' : '<span style="color:#e55353;">нет</span>');
+            rows += kv('Регистрация', dt(v.created_at));
+            rows += kv('Был в сети', dt(v.last_seen) + ' · ' + ago(v.last_seen));
+            $('#info_result').html(rows);
+
+            var ph = '';
+            $.each(r.photos || [], function (i, p) {
+                ph += '<div class="am-photo"><img class="am-zoom" src="' + esc(p.file) + '" alt="">' +
+                    (i === 0 ? '<span class="am-main">' + pill('главное', 'purple') + '</span>' : '') +
+                    '<div class="am-photo-actions">' + (i > 0 ? '<button class="btn btn--secondary photo-main" data-id="' + p.id + '" title="Сделать главным"><i class="fa fa-star"></i></button>' : '') +
+                    '<button class="btn btn-outline-danger photo-del" data-id="' + p.id + '" title="Удалить"><i class="fa fa-trash"></i></button></div></div>';
+            });
+            $('#photos_result').html(ph || '<p style="color:#999;">Фото нет</p>');
+            $('.c-photos').html(r.photos.length ? '(' + r.photos.length + ')' : '');
+
+            $('#selfie_box').html(v.verify_file ? '<h4>Селфи для верификации</h4><div class="am-photo"><img class="am-zoom" src="' + esc(v.verify_file) + '" style="border:3px solid #f9b115;"></div>' : '');
+
+            rows = '';
+            rows += kv('Симпатии', 'получил ❤ ' + c.likes_received + ' · ✕ ' + c.passes_received + '<br>поставил ❤ ' + c.likes_given + ' · ✕ ' + c.passes_given);
+            rows += kv('Пары', c.matches + ' · сообщений отправил: ' + c.messages_sent);
+            rows += kv('Гости', 'его смотрели ' + c.visits_in + ' · смотрел он ' + c.visits_out);
+            rows += kv('Жалобы', (c.reports_in > 0 ? '<b style="color:#e55353;">на него ' + c.reports_in + '</b>' : 'на него 0') + ' · его ' + c.reports_out);
+            rows += kv('Блокировки', 'его заблокировали ' + c.blocked_by + ' · он ' + c.blocks);
+            rows += kv('Устройства', 'сессий приложения ' + c.sessions + ' · push ' + c.push_tokens);
+            rows += kv('Встречи', 'организует ' + c.meetups_hosted + ' · идёт ' + c.meetups_going);
+            $('#counts_result').html(rows);
+            $('.c-matches').html(c.matches > 0 ? '(' + c.matches + ')' : '');
+            $('.c-reports').html(c.reports_in > 0 ? '<span class="badge badge-danger">' + c.reports_in + '</span>' : '');
+
+            rows = '';
+            rows += kv('Возраст', v.age_min + '–' + v.age_max);
+            rows += kv('Расстояние', 'до ' + v.max_km + ' км');
+            rows += kv('Только верифицированные', parseInt(v.verified_only) ? 'да' : 'нет');
+            $('#prefs_result').html(rows);
+        });
+    }
+
+    function open_tab(tab) {
+        if (tab === 'tab-matches') {
+            if (!lists.matches) lists.matches = scroll_list({ url: '/control/users/get-matches', tbody: '#matches_result', cols: 6,
+                data: function () { return { uid: uid }; },
+                row: function (v) {
+                    var last = v.last_body ? (parseInt(v.last_sender) === uid ? '<span class="am-sub">он: </span>' : '') + esc(strToDot(v.last_body, 80)) : '<span style="color:#999;">ещё не писали</span>';
+                    return '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned) + '</td><td>' + last + '</td><td class="text-center">' + v.messages + '</td>' +
+                        '<td style="white-space:nowrap;">' + dt(v.created_at) + '</td><td style="white-space:nowrap;">' + ago(v.last_at) + '</td>' +
+                        '<td><a class="btn btn-sm btn-primary" href="/control/chats/view?id=' + v.match_id + '"><i class="fa fa-comments"></i> Переписка</a></td></tr>';
+                } });
+            if (!loaded[tab]) lists.matches.reload();
+        }
+        if (tab === 'tab-votes') {
+            if (!lists.votes) lists.votes = scroll_list({ url: '/control/users/get-votes', tbody: '#votes_result', cols: 2, count: '.votes-count',
+                data: function () { return $.extend({ uid: uid }, form_data('#votes_filters')); },
+                row: function (v) { return '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned) + '</td><td>' + dt(v.created_at) + '</td></tr>'; } });
+            if (!loaded[tab]) lists.votes.reload();
+        }
+        if (tab === 'tab-visits') {
+            if (!lists.visits) lists.visits = scroll_list({ url: '/control/users/get-visits', tbody: '#visits_result', cols: 2, count: '.visits-count',
+                data: function () { return $.extend({ uid: uid }, form_data('#visits_filters')); },
+                row: function (v) { return '<tr><td>' + user_cell(v.id, v.name, v.photo, v.banned) + '</td><td>' + dt(v.seen_at) + '</td></tr>'; } });
+            if (!loaded[tab]) lists.visits.reload();
+        }
+        if (tab === 'tab-reports' && !loaded[tab]) {
+            post('/control/users/get-reports', { uid: uid }, function (r) {
+                var row = function (v) { return '<tr><td>' + user_link(v.uid, v.name, v.banned) + '</td><td>' + esc(v.reason) + '</td><td>' + (REPORT_ST[v.status] || '') + '</td><td>' + dt(v.created_at) + '</td></tr>'; };
+                $('#rep_against').html(_.map(r.against, row).join('') || empty_row(4));
+                $('#rep_from').html(_.map(r.from, row).join('') || empty_row(4));
+                var names = function (l) { return _.map(l, function (v) { return user_link(v.id, v.name); }).join(', ') || '<span style="color:#999;">никого</span>'; };
+                $('#blocked_by').html(names(r.blocked_by));
+                $('#blocks').html(names(r.blocks));
+            });
+        }
+        if (tab === 'tab-devices' && !loaded[tab]) {
+            post('/control/users/get-devices', { uid: uid }, function (r) {
+                $('#sessions_result').html(_.map(r.sessions, function (v) {
+                    return '<tr><td><code>' + esc(v.token) + '…</code></td><td>' + esc(v.platform || '—') + '</td><td>' + dt(v.created_at) + '</td><td>' + dt(v.expires_at) + '</td></tr>';
+                }).join('') || empty_row(4, 'В приложение не входил'));
+                $('#push_result').html(_.map(r.push, function (v) {
+                    return '<tr><td><code>' + esc(v.token) + '…</code></td><td>' + esc(v.platform || '—') + '</td><td>' + dt(v.created_at) + '</td></tr>';
+                }).join('') || empty_row(3, 'Push не подключены'));
+            });
+        }
+        if (tab === 'tab-meetups' && !loaded[tab]) {
+            post('/control/users/get-meetups', { uid: uid }, function (r) {
+                var link = function (v) { return '<a href="/control/meetups/view?id=' + v.id + '">' + esc(v.title) + '</a>'; };
+                $('#hosted_result').html(_.map(r.hosted, function (v) {
+                    return '<tr><td>' + link(v) + '</td><td>' + esc(v.place) + ', ' + esc(v.city) + '</td><td>' + dt(v.starts_at) + '</td><td class="text-center">' + v.going + '</td></tr>';
+                }).join('') || empty_row(4));
+                $('#going_result').html(_.map(r.going, function (v) {
+                    return '<tr><td>' + link(v) + '</td><td>' + esc(v.place) + ', ' + esc(v.city) + '</td><td>' + dt(v.starts_at) + '</td><td>' + (parseInt(v.checked_in_at) ? pill(dt(v.checked_in_at), 'green') : '—') + '</td></tr>';
+                }).join('') || empty_row(4));
+            });
+        }
+        if (tab === 'tab-log' && !loaded[tab]) {
+            post('/control/users/get-log', { uid: uid }, function (r) {
+                $('#log_result').html(_.map(r.items, function (v) {
+                    return '<tr><td style="white-space:nowrap;">' + dt(v.created_at) + '</td><td>' + user_link(v.admin_id, v.admin_name) + '</td><td>' + log_label(v.action) + '</td><td>' + esc(v.details) + '</td></tr>';
+                }).join('') || empty_row(4, 'Админы с ним ничего не делали'));
+            });
+        }
+        loaded[tab] = true;
+    }
+
+    function verify_dialog() {
+        var st = parseInt(info.verified);
+        BootstrapDialog.show({
+            title: 'Верификация', animate: false, nl2br: false,
+            message: 'Сейчас: <b>' + ['не подтверждён', 'селфи на проверке', 'подтверждён'][st] + '</b>.' +
+                (info.verify_file ? '<div style="margin-top:10px;"><img src="' + esc(info.verify_file) + '" style="max-width:220px;border-radius:8px;"></div>' : '<p class="am-sub" style="margin-top:8px;">Селфи не присылал — подтвердить можно и без него.</p>'),
+            buttons: [
+                { label: '<i class="fa fa-check"></i> Подтвердить', cssClass: 'btn btn-success', action: function (d) { post('/control/users/set-verified', { uid: uid, verified: 2 }, function () { d.close(); message_ok('Подтверждён'); get_info(); }); } },
+                { label: 'Снять / отклонить', cssClass: 'btn btn-outline-danger', action: function (d) { post('/control/users/set-verified', { uid: uid, verified: 0 }, function () { d.close(); message_ok('Верификация снята'); get_info(); }); } },
+                { label: 'Закрыть', cssClass: 'btn btn--secondary', action: function (d) { d.close(); } }
+            ]
+        });
+    }
+
+    function premium_dialog() {
+        var active = parseInt(info.premium_until) * 1000 > Date.now();
+        BootstrapDialog.show({
+            title: 'Premium', animate: false, nl2br: false,
+            message: (active ? 'Активен до <b>' + dt(info.premium_until) + '</b>. Продление — от этой даты.' : 'Сейчас Premium нет.') +
+                '<div class="form-group mt-3 mb-0"><label>Добавить дней</label><input type="number" id="pr_days" class="form-control" value="30" min="1" max="3650"></div>',
+            buttons: [
+                { label: 'Начислить', cssClass: 'btn btn--primary-1', action: function (d) { post('/control/users/set-premium', { uid: uid, days: parseInt($('#pr_days').val()) || 0 }, function () { d.close(); message_ok('Premium начислен'); get_info(); }); } },
+                { label: 'Отключить', cssClass: 'btn btn-outline-danger', action: function (d) { post('/control/users/set-premium', { uid: uid, days: 0 }, function () { d.close(); message_ok('Premium отключён'); get_info(); }); } },
+                { label: 'Закрыть', cssClass: 'btn btn--secondary', action: function (d) { d.close(); } }
+            ]
+        });
+    }
+
+    function edit_dialog() {
+        var cities = {{.cities}};
+        var opts = '<option value="">— не менять —</option>';
+        $.each(cities || [], function (i, c) { opts += '<option' + (c.Name === info.city ? ' selected' : '') + '>' + esc(c.Name) + '</option>'; });
+        BootstrapDialog.show({
+            title: 'Править анкету', animate: false, nl2br: false, closeByBackdrop: false,
+            message: '<div class="form-group"><label>Имя</label><input type="text" class="form-control" id="ed_name" maxlength="40" value="' + esc(info.name) + '"></div>' +
+                '<div class="form-group"><label>О себе</label><textarea class="form-control" id="ed_bio" rows="5" maxlength="500">' + esc(info.bio || '') + '</textarea></div>' +
+                '<div class="form-group"><label>Город</label><select class="form-control" id="ed_city">' + opts + '</select></div>' +
+                (parseInt(info.invisible) ? '<label style="font-weight:400;"><input type="checkbox" id="ed_visible"> выключить невидимку</label>' : ''),
+            buttons: [
+                { label: 'Сохранить', cssClass: 'btn btn--primary-1', action: function (d) {
+                    post('/control/users/edit-user-info', { uid: uid, name: $.trim($('#ed_name').val()), bio: $('#ed_bio').val(), city: $('#ed_city').val(), invisible: $('#ed_visible').is(':checked') ? 0 : '' },
+                        function () { d.close(); message_ok('Сохранено'); get_info(); }, this);
+                } },
+                { label: 'Закрыть', cssClass: 'btn btn--secondary', action: function (d) { d.close(); } }
+            ]
+        });
+    }
+
+</script>

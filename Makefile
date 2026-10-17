@@ -1,4 +1,4 @@
-.PHONY: setup run migrate test build core-update deploy setup-server logs-server fetch-db import-prod
+.PHONY: setup run migrate test build core-update deploy setup-server logs-server fetch-db import-prod control-super
 export GOTOOLCHAIN=local
 
 setup:           ## первый запуск: зависимости + таблицы и администратор
@@ -35,6 +35,10 @@ fetch-db:        ## снять копию боевой SQLite-базы с hermes
 import-prod:     ## залить data/amura.db на хостинг и импортировать в MySQL (повтор: WIPE=1 make import-prod)
 	scp -q data/amura.db dreampro:/home/dreampro/whales.team/badoo/app/runtime/amura.db
 	ssh dreampro 'cd /home/dreampro/whales.team/badoo/app && set -a && . ./.env && set +a && ./badoo-app import runtime/amura.db $(if $(WIPE),--wipe,) --photos=$(or $(PHOTOS),amur/prod) && rm -f runtime/amura.db'
+
+control-super:   ## суперадмин админки /control на хостинге: make control-super WHO=you@example.com (сначала войти на сайт)
+	@test -n "$(WHO)" || (echo "укажите WHO=<email или id>" && exit 1)
+	ssh dreampro 'cd /home/dreampro/whales.team/badoo/app && set -a && . ./.env && set +a && ./badoo-app control/super $(WHO)'
 
 logs-server:     ## хвост web.log на хостинге
 	ssh dreampro 'tail -n 100 -f /home/dreampro/whales.team/badoo/app/logs/web.log'

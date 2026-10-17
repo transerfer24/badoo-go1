@@ -42,8 +42,10 @@ const Dist = `6371 * ACOS(CASE WHEN ` + cosDist + ` > 1 THEN 1 ELSE ` + cosDist 
 
 const cosDist = `(COS(RADIANS(:lat)) * COS(RADIANS(u.lat)) * COS(RADIANS(u.lng) - RADIANS(:lng)) + SIN(RADIANS(:lat)) * SIN(RADIANS(u.lat)))`
 
-// NotBlocked — «нет блокировки между :me и u» (в любую сторону).
-const NotBlocked = ` AND NOT EXISTS (SELECT 1 FROM {{blocks}} b WHERE (b.blocker_id = :me AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = :me))`
+// NotBlocked — «u не заблокирован админкой и нет блокировки между :me и u» (в любую сторону).
+// Заблокированный в /control (users.banned) пропадает отовсюду, где показывают чужие анкеты: колода, «Рядом»,
+// симпатии, пары, гости, чаты.
+const NotBlocked = ` AND u.banned = 0 AND NOT EXISTS (SELECT 1 FROM {{blocks}} b WHERE (b.blocker_id = :me AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = :me))`
 
 // LikedMe — u уже лайкнул :me (1/0); MyVote — мой голос по u (NULL — не голосовал).
 const (

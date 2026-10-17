@@ -1,0 +1,80 @@
+{{.View.SetTitle "Встречи"}}
+
+<section style="padding-top: 16px;">
+    <form id="filters" class="am-filters" autocomplete="off">
+        <div class="form-group">
+            <label>Когда</label>
+            <select name="when" class="form-control">
+                <option value="">Предстоящие</option>
+                <option value="past">Прошедшие</option>
+                <option value="all">Все</option>
+            </select>
+        </div>
+        <div class="form-group am-wide">
+            <label>Поиск</label>
+            <input name="search" type="search" class="form-control" placeholder="Название, место, организатор">
+        </div>
+        <div class="form-group">
+            <label>Город</label>
+            <select name="city" class="form-control">
+                <option value="">Все</option>
+                {{range .cities}}<option value="{{.Name}}">{{.Name}}</option>{{end}}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Тип</label>
+            <select name="kind" class="form-control">
+                <option value="">Любой</option>
+                {{range .kinds}}<option value="{{.Key}}">{{.Label}}</option>{{end}}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Источник</label>
+            <select name="demo" class="form-control">
+                <option value="">Все</option>
+                <option value="0">Созданы людьми</option>
+                <option value="1">Тестовые (AMURA_DEV)</option>
+            </select>
+        </div>
+    </form>
+</section>
+
+<section style="min-height: 700px;">
+    <h4 style="margin-bottom:10px;">События (<span class="m-count">0</span>)</h4>
+    <table class="border--round table--alternate-row">
+        <thead><tr><th>Событие</th><th>Место</th><th>Когда</th><th>Организатор</th><th class="text-center">Идут</th><th class="text-center"></th></tr></thead>
+        <tbody id="meetups_result"></tbody>
+    </table>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var list;
+    $(function () {
+        filters_from_url('#filters');
+        list = scroll_list({
+            url: '/control/meetups/get-meetups', tbody: '#meetups_result', cols: 6, count: '.m-count',
+            data: function () { var d = form_data('#filters'); filters_to_url(d); return d; },
+            row: function (v) {
+                var cap = parseInt(v.capacity) ? ' / ' + v.capacity : '';
+                return '<tr><td><a href="/control/meetups/view?id=' + v.id + '"><b>' + esc(v.title) + '</b></a><div class="am-sub">' + esc(v.kind_label || v.kind) +
+                    (v.price ? ' · ' + esc(v.price) : '') + (parseInt(v.demo) ? ' ' + pill('тест', 'grey') : '') + '</div></td>' +
+                    '<td>' + esc(v.place) + '<div class="am-sub">' + esc(v.city) + '</div></td>' +
+                    '<td style="white-space:nowrap;">' + dt(v.starts_at, 'DD.MM HH:mm') + ' – ' + dt(v.ends_at, 'HH:mm') + '</td>' +
+                    '<td>' + (v.host_id ? user_link(v.host_id, v.host_name, v.host_banned) : '<span class="am-sub">Amura</span>') + '</td>' +
+                    '<td class="text-center">' + v.going + cap + (parseInt(v.checked_in) ? '<div class="am-sub">отметились ' + v.checked_in + '</div>' : '') + '</td>' +
+                    '<td class="text-center" style="white-space:nowrap;"><a class="btn btn-sm btn-primary" href="/control/meetups/view?id=' + v.id + '"><i class="fa fa-info"></i></a> ' +
+                    '<button class="btn btn-sm btn-outline-danger mt-del" data-id="' + v.id + '" data-title="' + esc(v.title) + '"><i class="fa fa-trash"></i></button></td></tr>';
+            }
+        });
+        list.reload();
+        var timer = null;
+        $('#filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(list.reload, 400); });
+        $('#filters').on('change', 'select', list.reload);
+        $('#filters').on('submit', function (e) { e.preventDefault(); });
+        $(document).on('click', '.mt-del', function () {
+            var id = $(this).data('id');
+            confirm_action({ title: 'Удалить «' + esc($(this).data('title')) + '»?', danger: true, ok: 'Удалить', message: 'Событие и список идущих удалятся.' },
+                function () { post('/control/meetups/delete', { id: id }, function () { message_ok('Удалено'); list.reload(); }); });
+        });
+    });
+</script>

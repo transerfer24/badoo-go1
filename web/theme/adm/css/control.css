@@ -1,0 +1,108 @@
+.media-wrap .item {
+    display: inline-block;
+    height: 40px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.media-wrap .item img {
+    display: block;
+    height: 100%;
+    max-width: inherit;
+    margin: 0 auto;
+}
+
+.photo-delete-btn{
+    color: #dc3545;
+    display: inline-block;
+    border-bottom: 1px solid #dc3545;
+    line-height: 13px;
+    cursor: pointer;
+    padding: 4px 0 0;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+.line-info{
+    color: #000000;
+    background-color: #ffffff;
+    border-bottom: 1px solid #ececec;
+    padding: 0 15px;
+    margin: 0 -15px;
+    height: 30px;
+    line-height: 30px;
+    vertical-align: middle;
+}
+
+span.photo-add-btn{
+    color: #0095d8;
+    display: inline-block;
+    border-bottom: 1px solid #03A9F4;
+    line-height: 13px;
+    cursor: pointer;
+    padding: 4px 0 0;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+.vocabulary-table .word .fa-lock{
+    font-size: 17px;
+}
+.vocabulary-table tbody tr.custom {
+    background: #fff9d9;
+}
+.vocabulary-table .word .text{
+    font-weight: bold;
+    width: 15%;
+}
+.vocabulary-table .word .top{
+    color: #dadada;
+    font-size: 17px;
+}
+.vocabulary-table .word .top.active{
+    font-size: 17px;
+    color: #ffcb2d;
+}
+
+.btn-group{
+    position: relative;
+    vertical-align: middle;
+}
+.form-control-search {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    width: 34px;
+    height: 42px;
+    line-height: 42px !important;
+    text-align: center;
+    display: none;
+    cursor: pointer;
+}
+.highlight{
+    background-color: #F8DF0A;
+}
+.center{
+    text-align: center;
+}
+
+.v-top td{
+    vertical-align: top;
+}
+
+.modal-table .btn + .btn{
+    margin-left: 5px !important;
+}
+
+.menu-vertical > li.active a{
+    border-bottom: 2px solid #4a90e2;
+    padding-bottom: 2px;
+}
+
+.modal-table table .btn {
+    margin-bottom: 0;
+}
+.modal-table table .btn + .btn {
+    margin-left: 5px !important;
+}

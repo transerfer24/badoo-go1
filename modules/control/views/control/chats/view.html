@@ -1,0 +1,68 @@
+{{.View.SetTitle (printf "Переписка #%d" .id)}}
+
+<section style="padding-top: 16px;">
+    <div class="am-chat-head">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <a href="/control/chats" class="btn btn--secondary btn--sm"><i class="fa fa-arrow-left"></i></a>
+            <div id="side_a"></div>
+        </div>
+        <div style="text-align:center;" id="pair_info"></div>
+        <div id="side_b"></div>
+    </div>
+</section>
+
+<section style="min-height: 600px;">
+    <div class="am-chat">
+        <div style="text-align:center;margin-bottom:10px;"><button class="btn btn--secondary btn--sm" id="more-btn" style="display:none;">Показать раньше</button></div>
+        <div id="messages"><p style="text-align:center;color:#999;">Загрузка...</p></div>
+    </div>
+    <p style="font-size:12px;color:#768192;text-align:center;margin-top:16px;">Админ видит переписку как есть: прочитанным ничего не отмечается. Наведите на сообщение, чтобы удалить его.</p>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var id = {{.id}}, pair = null, oldest = 0;
+
+    $(function () {
+        load(0);
+        $('#more-btn').on('click', function () { load(oldest); });
+        $(document).on('click', '.am-del', function () {
+            var mid = $(this).data('id');
+            confirm_action({ title: 'Удалить сообщение?', danger: true, ok: 'Удалить', message: 'Сообщение пропадёт у обоих. Действие попадёт в журнал.' },
+                function () { post('/control/chats/delete-message', { id: mid }, function () { $('#m' + mid).remove(); message_ok('Удалено'); }); });
+        });
+    });
+
+    function side(prefix, p) {
+        var sub = p[prefix + '_email'] ? esc(p[prefix + '_email']) : '';
+        sub += parseInt(p[prefix + '_verified']) === 2 ? ' ' + pill('✓', 'green') : '';
+        sub += ' · ' + ago(p[prefix + '_last_seen']);
+        return user_cell(p['user_' + prefix], p[prefix + '_name'], p[prefix + '_photo'], p[prefix + '_banned'], sub);
+    }
+
+    function load(before) {
+        post('/control/chats/get-messages', { id: id, before: before }, function (r) {
+            var p = pair = r.pair;
+            $('#side_a').html(side('a', p));
+            $('#side_b').html(side('b', p));
+            $('#pair_info').html('<div style="font-size:13px;">Пара с ' + dt(p.created_at) + '</div><div class="am-sub">сообщений: ' + p.total + '</div>' +
+                (parseInt(p.blocked) ? pill('один заблокировал другого', 'red') : ''));
+            var html = '';
+            $.each(r.items || [], function (i, m) {
+                var right = parseInt(m.sender_id) === parseInt(p.user_b);
+                html += '<div class="am-msg' + (right ? ' right' : '') + '" id="m' + m.id + '"><div><div class="am-bubble">' + esc(m.body) +
+                    '<span class="am-del" data-id="' + m.id + '" title="Удалить"><i class="fa fa-times"></i></span></div>' +
+                    '<div class="am-meta"' + (right ? ' style="text-align:right;"' : '') + '>' + esc(right ? p.b_name : p.a_name) + ' · ' + dt(m.created_at) +
+                    (parseInt(m.read_at) ? ' · прочитано' : '') + '</div></div></div>';
+            });
+            if (before) $('#messages').prepend(html);
+            else $('#messages').html(html || '<p style="text-align:center;color:#999;">Сообщений нет</p>');
+            if (r.items && r.items.length) oldest = r.items[0].id;
+            $('#more-btn').toggle(!!r.has_more);
+            if (!before) {
+                var target = location.hash && $(location.hash);
+                if (target && target.length) { $('html,body').scrollTop(target.offset().top - 120); target.find('.am-bubble').css('outline', '2px solid #f9b115'); }
+                else window.scrollTo(0, document.body.scrollHeight);
+            }
+        });
+    }
+</script>

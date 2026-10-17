@@ -1,0 +1,53 @@
+{{.View.SetTitle "Журнал действий"}}
+
+<section style="padding-top: 16px;">
+    <form id="filters" class="am-filters" autocomplete="off">
+        <div class="form-group">
+            <label>Действие</label>
+            <select name="action" class="form-control" id="action_select"><option value="">Все</option></select>
+        </div>
+        <div class="form-group">
+            <label>Админ</label>
+            <select name="admin_id" class="form-control" id="admin_select"><option value="">Все</option></select>
+        </div>
+        <div class="form-group am-wide">
+            <label>Поиск</label>
+            <input name="search" type="search" class="form-control" placeholder="Подробности, имя или #id пользователя">
+        </div>
+    </form>
+</section>
+
+<section style="min-height: 700px;">
+    <h4 style="margin-bottom:10px;">Записей: <span class="log-count">0</span></h4>
+    <table class="border--round table--alternate-row">
+        <thead><tr><th>Когда</th><th>Админ</th><th>Действие</th><th>Пользователь</th><th>Подробности</th><th>IP</th></tr></thead>
+        <tbody id="log_result"></tbody>
+    </table>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var list, adminsLoaded = false;
+    $(function () {
+        $.each(LOG_LABELS, function (k, v) { $('#action_select').append('<option value="' + k + '">' + $('<div>').html(v).text() + '</option>'); });
+        filters_from_url('#filters');
+        list = scroll_list({
+            url: '/control/log/get-log', tbody: '#log_result', cols: 6, count: '.log-count',
+            data: function () { var d = form_data('#filters'); filters_to_url(d); return d; },
+            onLoad: function (r) {
+                if (adminsLoaded) return;
+                adminsLoaded = true;
+                var cur = new URLSearchParams(location.search).get('admin_id');
+                $.each(r.admins || [], function (i, a) { $('#admin_select').append('<option value="' + a.id + '"' + (String(a.id) === cur ? ' selected' : '') + '>' + esc(a.name || ('#' + a.id)) + '</option>'); });
+            },
+            row: function (v) {
+                return '<tr><td style="white-space:nowrap;">' + dt(v.created_at) + '</td><td>' + user_link(v.admin_id, v.admin_name) + '</td><td>' + log_label(v.action) + '</td>' +
+                    '<td>' + (parseInt(v.user_id) ? user_link(v.user_id, v.user_name) : '—') + '</td><td>' + esc(v.details) + '</td><td class="am-sub">' + esc(v.ip) + '</td></tr>';
+            }
+        });
+        list.reload();
+        var timer = null;
+        $('#filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(list.reload, 400); });
+        $('#filters').on('change', 'select', list.reload);
+        $('#filters').on('submit', function (e) { e.preventDefault(); });
+    });
+</script>
