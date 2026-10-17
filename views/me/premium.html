@@ -1,27 +1,46 @@
+{{- /* Premium в дизайне dating2 (premium.php макета). Без таймеров и «осталось два места»: сказано, что подписка
+   даёт и чего не даёт. .plans — users.Plans, .dev — тестовый режим (оплата не списывается). */ -}}
 {{.View.SetTitle "Amura Premium"}}
-<section class="narrow premium">
-  <header class="page-head"><h1>{{template "i-crown"}} Amura Premium</h1></header>
-  {{if .me.IsPremium}}
-  <div class="form-card stack">
-    <p class="pill pill-premium">Активен до {{.me.PremiumDate}}</p>
-    <p class="muted">Автопродления в тестовом режиме нет. Отмена — одна кнопка, без анкет и звонков.</p>
-    <form method="post" action="/premium/cancel">{{.Csrf}}<button class="btn btn-ghost" type="submit">Отменить подписку</button></form>
-  </div>
-  {{end}}
-  <ul class="perks">
-    <li>{{template "i-heart"}}<span><b>Кто вас лайкнул</b> Сразу видите всех, кому понравились.</span></li>
-    <li>{{template "i-undo"}}<span><b>Вернуть анкету</b> Случайно смахнули влево? Вернём.</span></li>
-    <li>{{template "i-eye"}}<span><b>Невидимка</b> Смотрите анкеты, не появляясь в «Гостях».</span></li>
-  </ul>
-  <p class="muted small">Знакомства, чат, фильтры и верификация бесплатны всегда.</p>
-  <div class="plans">
-    {{range .plans}}
-    <form method="post" action="/premium/activate" class="plan {{if .Accent}}plan-accent{{end}}">
-      {{$.Csrf}}<input type="hidden" name="plan" value="{{.Id}}">
-      <h2>{{.Title}}</h2><p class="price">{{.Price}}</p>{{if .Per}}<p class="muted small">{{.Per}}</p>{{end}}
-      <button class="btn {{if .Accent}}btn-premium{{else}}btn-ghost{{end}} btn-block" type="submit">{{if $.me.IsPremium}}Продлить{{else}}Выбрать{{end}}</button>
-    </form>
-    {{end}}
-  </div>
-  {{if eq .App.Env "dev"}}<p class="hint small">Тестовый режим: оплата не списывается, премиум включается сразу.</p>{{end}}
+<section class="pr-hero">
+    <h1>Amura Premium</h1>
+    <p>Подписка не добавляет симпатий и не поднимает вас в подборках. Она убирает то, что мешает: размытый список
+       тех, кто вас отметил, и невозможность вернуть случайно пропущенную анкету.</p>
 </section>
+
+{{- if .me.IsPremium}}
+<div class="form-card pr-active">
+    <div class="side-row">
+        {{icon "crown" 24}}
+        <div class="grow">
+            <b>Premium активен до {{.me.PremiumDate}}</b>
+            <p class="small muted">Отмена — одна кнопка, без писем и звонков. Действует сразу.</p>
+        </div>
+        <form method="post" action="/premium/cancel">{{.Csrf}}<button class="btn btn-ghost" type="submit">Отменить подписку</button></form>
+    </div>
+</div>
+{{- end}}
+
+<h2 class="sec-t sec-t-first">Что входит</h2>
+<div class="perks">
+    <article class="perk"><div class="perk-ic">{{icon "heart" 21}}</div><h3>Кто вас отметил</h3><p>Сразу видите всех, кому понравились, — без размытия.</p></article>
+    <article class="perk"><div class="perk-ic">{{icon "refresh" 21}}</div><h3>Вернуть анкету</h3><p>Случайно пропустили во «Встречах»? Вернём последнюю.</p></article>
+    <article class="perk"><div class="perk-ic">{{icon "eye-off" 21}}</div><h3>Невидимка</h3><p>Смотрите анкеты, не появляясь у людей в «Гостях».</p></article>
+</div>
+
+<h2 class="sec-t">Сколько стоит</h2>
+<div class="plans">
+    {{- range .plans}}
+    <form method="post" action="/premium/activate" class="plan{{if .Accent}} plan-on{{end}}">{{$.Csrf}}
+        <input type="hidden" name="plan" value="{{.Id}}">
+        {{- if .Accent}}<span class="plan-tag">Выбирают чаще</span>{{end}}
+        <div class="plan-term">{{.Title}}</div>
+        <div class="plan-price">{{.Price}}</div>
+        {{- with .Per}}<span class="plan-save">{{.}}</span>{{end}}
+        <button class="btn {{if .Accent}}btn-premium{{else}}btn-ghost{{end}} btn-block" type="submit">{{if $.me.IsPremium}}Продлить{{else}}Оформить{{end}}</button>
+    </form>
+    {{- end}}
+</div>
+<p class="pr-fine">Знакомства, переписка, фильтры и проверка селфи бесплатны всегда.</p>
+{{- if .dev}}
+<div class="hint pr-honest">{{icon "info" 17}}<span>Сейчас тестовый режим: оплата не списывается, Premium включается сразу.</span></div>
+{{- end}}

@@ -62,7 +62,9 @@ func (c *SocialController) ActionChat() error {
 	c.View.SetTitle(peer.Str("name"))
 	c.View.Params = web.M{"active": "messages"}
 
-	return c.Render("chat", web.M{"match_id": mid, "peer": peer, "messages": arr.Map(chat.Messages(me, mid, 0), toMsg), "can_send": chat.CanSend(me)})
+	// threads — колонка переписок слева (как в макете dating2): переключаться, не возвращаясь к списку
+	return c.Render("chat", web.M{"match_id": mid, "peer": peer, "messages": arr.Map(chat.Messages(me, mid, 0), toMsg),
+		"can_send": chat.CanSend(me), "threads": chat.Threads(me), "reasons": discovery.ReportReasons})
 }
 
 func (c *SocialController) ActionChatMessages() error {

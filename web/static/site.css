@@ -1,10 +1,7 @@
 /*
-Amura · дополнения к app.css (app.css — собранный файл макета WowMoneyDesign/designes/dating2, его не правим:
-обновление — копия assets/css/app.css после ./build.sh).
-
-1. Наше, чего нет в макете (загрузка колоды, окно «взаимно» и т.п.) — раздел «Сайт».
-2. СОВМЕСТИМОСТЬ — старые стили страниц, которые ещё не переодеты (вторая порция: симпатии, чаты, анкета,
-   профиль, Premium, настройки, вход). Удаляется по мере переодевания; когда пусто — удалить раздел целиком.
+Amura · дополнения к app.css. app.css — собранный файл макета WowMoneyDesign/designes/dating2 (его не правим:
+обновление — ./build.sh в макете и копия assets/css/app.css сюда). Здесь — только то, чего в макете нет:
+состояния живого сайта (загрузка колоды, сообщение в пути, ошибки форм) и блоки, которые макет не рисовал.
 */
 
 /* ---------- Сайт ---------- */
@@ -43,62 +40,41 @@ Amura · дополнения к app.css (app.css — собранный фай�
 .auth-box form + form, .auth-box .stack + form { margin-top: var(--s2); }
 .auth-box .alert { margin-top: var(--s4); }
 
-/* ---------- СОВМЕСТИМОСТЬ: старые переменные → токены макета ---------- */
-:root {
-  --border-input: var(--border-2);
-  --accent-strong: var(--accent-text);
-  --like: var(--warm);
-  --like-soft: var(--warm-soft);
-  --premium: var(--gold);
-  --premium-bg: var(--gold-soft);
-  --shadow: var(--shadow-2);
-  --shadow-card: var(--shadow-3);
-}
+/* Формы: ошибка поля, сообщение об успехе */
+.field .err { display: block; margin-top: 5px; font-size: 12.5px; font-weight: 600; color: var(--danger); }
 
-/* ---------- СОВМЕСТИМОСТЬ: старые правила (сгенерировано из прежнего /static/app.css) ---------- */
-.btn-xs { min-height: 28px; padding: 4px 10px; font-size: 12px; --b: rgb(255 255 255 / .92); --c: #1C1B19; }
-.btn-xs.btn-danger { --b: rgb(255 255 255 / .92); --c: #B42318; }
-.danger-zone > summary { color: var(--danger); }
-.flash { background: var(--accent-soft); color: var(--text); padding: var(--s3) var(--s4); border-radius: var(--r-md); margin-bottom: var(--s4); font-weight: 600; }
-.verified .ic .ic-tick { stroke: var(--on-accent); fill: none; }
-.brand { display: inline-flex; align-items: center; gap: var(--s2); color: var(--text); text-decoration: none; font-weight: 800; font-size: 24px; letter-spacing: -0.02em; }
-@media (min-width: 900px) {
-  }
-.tile-name .verified .ic .ic-tick { stroke: var(--accent); }
-.grid-locked .tile img { filter: blur(14px) saturate(.8); transform: scale(1.15); }
-.filters-form { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); align-items: end; margin-top: var(--s3);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s4); }
-.ava-wrap { position: relative; flex: none; }
-.ava-wrap .dot-online { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; }
-.strip { display: flex; gap: var(--s4); overflow-x: auto; padding: var(--s1) var(--s1) var(--s4); margin-bottom: var(--s3); }
-.strip-item { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text); text-decoration: none; font-size: 13px; font-weight: 700; }
-.gal-prev, .gal-next { position: absolute; top: 0; bottom: 0; width: 40%; background: none; border: 0; cursor: pointer; }
-.gal-prev { left: 0; }
-.gal-next { right: 0; }
-.profile-body h1 { display: flex; align-items: center; gap: var(--s2); }
-.profile-actions { margin: var(--s4) 0; }
-.photo-tools { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
-.chat-peer { display: flex; align-items: center; gap: var(--s3); color: var(--text); text-decoration: none; }
-.chat-peer .ava { width: 44px; height: 44px; }
-.chat-log { flex: 1; overflow-y: auto; padding: var(--s4) 0; display: flex; flex-direction: column; gap: 6px; }
-.chat-empty { margin: auto; max-width: 340px; }
+/* Чат: сообщение ещё в пути; писать нельзя без проверки селфи */
 .bubble.pending { opacity: .6; }
-.day { align-self: center; font-size: 12px; color: var(--text-muted); font-weight: 700; margin: var(--s2) 0; }
-.chat-locked { border-top: 1px solid var(--border); padding-top: var(--s4); text-align: center; }
-.premium .page-head h1 .ic { color: var(--premium); width: 28px; height: 28px; }
-.price { font-size: 26px; font-weight: 800; margin: 0; }
-.pose { font-size: 22px; font-weight: 800; color: var(--accent); }
-.big-ok { display: grid; place-items: center; }
-.big-ok .ic { width: 72px; height: 72px; fill: var(--accent); stroke: var(--accent); }
-.big-ok .ic-tick { stroke: var(--on-accent); fill: none; }
-.err { color: var(--danger); font-weight: 600; font-size: 14px; }
+.chat-locked { display: grid; justify-items: center; gap: var(--s3); padding: var(--s5) var(--s4);
+               border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 14px; }
 
-/* СОВМЕСТИМОСТЬ: чат (пока не переодет — в макете у .bubble другая разметка). Правила внутри .chat-log,
-   чтобы не спорить с макетом; убрать вместе с переодеванием chat.html. */
-.chat-log { display: flex; flex-direction: column; gap: 6px; }
-.chat-log .bubble { max-width: 78%; padding: 9px 14px; border-radius: 18px; background: var(--surface); color: var(--text);
-  border: 1px solid var(--border); align-self: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
-.chat-log .bubble.mine { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-color: transparent; }
-.chat-log .bubble time { display: block; font-size: 11px; opacity: .7; text-align: right; margin-top: 2px; }
-.chat-log .bubble.pending { opacity: .6; }
-.chat-log .day { align-self: center; font-size: 12px; color: var(--text-muted); font-weight: 700; margin: var(--s2) 0; }
+/* Мой профиль: чипсы выбора — чекбокс спрятан, состояние показывает .on у плашки; кнопка сохранения */
+.chips-pick label.pill { position: relative; cursor: pointer; }
+.chips-pick label.pill input { position: absolute; opacity: 0; pointer-events: none; }
+.chips-pick label.pill:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.me-save { position: sticky; bottom: var(--s4); z-index: 5; display: flex; justify-content: flex-end; margin-top: var(--s5); }
+.me-save .btn { box-shadow: var(--shadow-3); }
+.photo-add small { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-faint); }
+@media (max-width: 900px) { .me-save { bottom: calc(var(--nav-h, 72px) + var(--s3)); } }
+
+/* Premium: активная подписка */
+.pr-active { margin-bottom: var(--s6); }
+.pr-active .ic { color: var(--gold); flex: none; }
+
+/* Проверка селфи: жест крупно */
+.verify-card { max-width: 560px; }
+.verify-pose { display: flex; align-items: center; gap: 10px; padding: var(--s4); border-radius: var(--r-md);
+               background: var(--accent-soft); color: var(--accent-text); font-size: 17px; font-weight: 700; }
+
+/* Окно «взаимно» на колоде: карточка .match внутри модалки без своей рамки */
+.modal-match .match { margin: 0; border: 0; box-shadow: none; }
+
+/* Два поля в ряд (возраст от–до и т.п.); на телефоне — тоже в ряд, они короткие */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+.stack > .cols .field + .field { margin-top: 0; }
+
+/* «Рядом»: в строке действий фильтров ещё и флажки — на узком экране переносятся, флажки слева, кнопки справа */
+.filters-end { flex-wrap: wrap; align-items: center; }
+.filters-end .check { margin-right: var(--s3); align-items: center; }
+.filters-end .check:last-of-type { margin-right: auto; }
+@media (max-width: 520px) { .filters-end .check { flex: 1 1 100%; margin-right: 0; } }

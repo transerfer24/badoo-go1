@@ -1,57 +1,101 @@
-{{- /* Анкета (templates/profile.html). .u — строка discovery.Profile: колонки анкеты + photos, dist_km, liked_me,
-   my_vote (NULL — не голосовал), match_id; .reasons, .is_me. Формы — обычные POST с {{$.Csrf}}. */ -}}
-{{$u := .u}}{{$gallery := gallery $u.photos $u.id}}
-<section class="profile">
-  <a class="back" href="/nearby" data-back>{{template "i-back"}} Назад</a>
-  <div class="profile-grid">
-    <div class="gallery" data-gallery>
-      {{range $i, $p := $gallery}}<img src="{{$p}}" alt="Фото {{add $i 1}}: {{$u.name}}" {{if $i}}hidden{{end}}>{{end}}
-      {{if gt (len $gallery) 1}}<div class="card-bars">{{range $i, $p := $gallery}}<i {{if not $i}}class="on"{{end}}></i>{{end}}</div>
-      <button class="gal-prev" type="button" aria-label="Предыдущее фото"></button><button class="gal-next" type="button" aria-label="Следующее фото"></button>{{end}}
+{{- /* Анкета в дизайне dating2 (person.php макета). .u — строка discovery.Profile: колонки анкеты + photos, dist_km,
+   liked_me, my_vote (NULL — не голосовал), match_id; .reasons, .is_me. Действия — обычные POST-формы с {{$.Csrf}}. */ -}}
+{{- $u := .u}}{{$gallery := gallery $u.photos $u.id}}
+<a class="back" href="/nearby" data-back>{{icon "arrow-left" 18}} Назад</a>
+<div class="profile-grid">
+    <div class="profile-left">
+        <div class="gal" data-gal>
+            <figure class="gal-main">
+                <img src="{{index $gallery 0}}" alt="{{$u.name}}, фотография 1" data-gal-main>
+                <button class="gal-zoom" type="button" aria-label="Открыть фотографию крупно"></button>
+                <span class="gallery-count">{{icon "photo" 13}}<b data-gal-at>1</b>&thinsp;/&thinsp;{{len $gallery}}</span>
+            </figure>
+            {{- if gt (len $gallery) 1}}
+            <ul class="gal-thumbs">
+                {{- range $i, $p := $gallery}}
+                <li><button class="gal-thumb{{if eq $i 0}} on{{end}}" type="button" data-i="{{$i}}" aria-label="Фотография {{add $i 1}}" aria-pressed="{{if eq $i 0}}true{{else}}false{{end}}"><img src="{{$p}}" alt="" loading="lazy"></button></li>
+                {{- end}}
+            </ul>
+            {{- end}}
+        </div>
     </div>
-    <div class="profile-body">
-      <h1>{{$u.name}}, {{age $u.birthdate}} {{if verified $u.verified}}{{template "badge-verified"}}{{end}}</h1>
-      <p class="muted">{{if online $u.last_seen}}<span class="dot-online"></span> Онлайн · {{else}}Был(а) {{ago $u.last_seen}} · {{end}}{{$u.city}}{{if not .is_me}}, {{dist $u.dist_km}}{{end}}</p>
-      {{if .liked_me}}<p class="pill pill-accent">{{template "i-heart"}} Вы понравились {{$u.name}}</p>{{end}}
 
-      {{if not .is_me}}
-      <div class="row profile-actions">
-        {{if $u.match_id}}
-          <a class="btn btn-primary" href="/chat/{{$u.match_id}}">{{template "i-chat"}} Написать</a>
-        {{else}}{{$liked := and $u.my_vote (eq ($u.Int "my_vote") 1)}}{{$passed := and $u.my_vote (eq ($u.Int "my_vote") 0)}}
-          <form method="post" action="/u/{{$u.id}}/vote">{{$.Csrf}}<input type="hidden" name="liked" value="0">
-            <button class="btn btn-ghost {{if $passed}}is-on{{end}}" type="submit">{{template "i-x"}} Нет</button></form>
-          <form method="post" action="/u/{{$u.id}}/vote">{{$.Csrf}}<input type="hidden" name="liked" value="1">
-            <button class="btn btn-like" type="submit" {{if $liked}}disabled{{end}}>{{template "i-heart"}} {{if $liked}}Симпатия отправлена{{else}}Нравится{{end}}</button></form>
-        {{end}}
-      </div>
-      {{else}}
-      <a class="btn btn-ghost" href="/me">Редактировать профиль</a>
-      {{end}}
+    <aside class="profile-side">
+        <div class="profile-id">
+            <h1 class="profile-name">{{$u.name}}<span class="age">{{age $u.birthdate}}</span>{{if verified $u.verified}}{{template "badge-verified"}}{{end}}</h1>
+            <p class="profile-where">{{icon "map-pin" 15}} {{$u.city}}{{if not .is_me}}, {{dist $u.dist_km}}{{end}}
+                {{- if online $u.last_seen}} · <i class="dot-online"></i> в сети{{else}} · был(а) {{ago $u.last_seen}}{{end}}</p>
+            {{- if .liked_me}}<p class="pill pill-accent">{{icon "heart" 14}} {{$u.name}} отметил(а) вас</p>{{end}}
+        </div>
 
-      <dl class="facts">
-        {{with intent $u.intent}}<div><dt>Ищет</dt><dd>{{.}}</dd></div>{{end}}
-        <div><dt>Пол</dt><dd>{{gender $u.gender}}</dd></div>
-        {{if $u.height}}<div><dt>Рост</dt><dd>{{$u.height}} см</dd></div>{{end}}
-      </dl>
-      {{if $u.bio}}<h2 class="h3">О себе</h2><p class="bio">{{$u.bio}}</p>{{end}}
-      {{with interests $u.interests}}<h2 class="h3">Интересы</h2><ul class="chips">{{range .}}<li>{{.}}</li>{{end}}</ul>{{end}}
+        {{- if .is_me}}
+        <div class="profile-act"><a class="btn btn-ghost" href="/me">{{icon "pencil" 18}} Редактировать профиль</a></div>
+        {{- else}}
+        <div class="profile-act">
+            {{- if $u.match_id}}
+            <a class="btn btn-primary btn-lg" href="/chat/{{$u.match_id}}">{{icon "message" 19}} Написать</a>
+            {{- else}}{{$liked := and $u.my_vote (eq ($u.Int "my_vote") 1)}}{{$passed := and $u.my_vote (eq ($u.Int "my_vote") 0)}}
+            <form method="post" action="/u/{{$u.id}}/vote">{{$.Csrf}}<input type="hidden" name="liked" value="1">
+                <button class="btn btn-like btn-lg btn-block{{if $liked}} liked{{end}}" type="submit"{{if $liked}} disabled{{end}}>{{icon "heart-filled" 19}} {{if $liked}}Симпатия отправлена{{else}}Нравится{{end}}</button></form>
+            <form method="post" action="/u/{{$u.id}}/vote">{{$.Csrf}}<input type="hidden" name="liked" value="0">
+                <button class="btn btn-ghost btn-block" type="submit"{{if $passed}} disabled{{end}}>{{icon "x" 18}} {{if $passed}}Уже пропустили{{else}}Не сейчас{{end}}</button></form>
+            {{- end}}
+        </div>
+        {{- end}}
 
-      {{if not .is_me}}
-      <details class="safety">
-        <summary>{{template "i-flag"}} Пожаловаться или заблокировать</summary>
-        <form method="post" action="/u/{{$u.id}}/report" class="stack">
-          {{$.Csrf}}
-          <fieldset class="field"><legend>Что не так?</legend>
-            {{range .reasons}}<label class="check"><input type="radio" name="reason" value="{{.}}" required> <span>{{.}}</span></label>{{end}}
-          </fieldset>
-          <label class="check"><input type="checkbox" name="block" value="1" checked> <span>Также заблокировать</span></label>
-          <button class="btn btn-danger" type="submit">Отправить жалобу</button>
-        </form>
-        <form method="post" action="/u/{{$u.id}}/block">{{$.Csrf}}
-          <button class="btn btn-ghost" type="submit">Просто заблокировать</button></form>
-      </details>
-      {{end}}
-    </div>
-  </div>
-</section>
+        {{- if $u.bio}}
+        <div class="bio"><h2>О себе</h2><p class="bio-quote">{{$u.bio}}</p></div>
+        {{- end}}
+        <dl class="facts">
+            {{- with intent $u.intent}}<div class="fact"><dt>Ищет</dt><dd>{{.}}</dd></div>{{end}}
+            <div class="fact"><dt>Пол</dt><dd>{{gender $u.gender}}</dd></div>
+            {{- if $u.height}}<div class="fact"><dt>Рост</dt><dd>{{$u.height}} см</dd></div>{{end}}
+            {{- with $u.city}}<div class="fact"><dt>Город</dt><dd>{{.}}</dd></div>{{end}}
+        </dl>
+        {{- with interests $u.interests}}
+        <div class="bio"><h2>Интересы</h2><ul class="chips">{{range .}}<li class="pill">{{.}}</li>{{end}}</ul></div>
+        {{- end}}
+
+        {{- if not .is_me}}
+        <div class="safety">
+            {{icon "shield" 16}}<span>Что-то не так?</span>
+            <a href="#" data-open="report">Пожаловаться</a>
+            <a href="#" data-open="block">Заблокировать</a>
+        </div>
+        {{- end}}
+    </aside>
+</div>
+
+{{- if not .is_me}}
+<dialog class="modal" id="report" aria-labelledby="h-report">
+    <form method="post" action="/u/{{$u.id}}/report" class="modal-box">{{.Csrf}}
+        {{template "modal-head" (dict "id" "h-report" "t" "Пожаловаться на анкету")}}
+        <div class="modal-b">
+            <ul class="opts">
+                {{- range $i, $r := .reasons}}
+                <li><label class="opt"><input type="radio" name="reason" value="{{$r}}"{{if eq $i 0}} checked{{end}}><span>{{$r}}</span>{{icon "check" 17}}</label></li>
+                {{- end}}
+            </ul>
+            <label class="check"><input type="checkbox" name="block" value="1" checked><span>Также заблокировать</span></label>
+            <p class="modal-note">{{icon "info" 15}}<span>Жалобу смотрит модерация. С блокировкой анкета сразу пропадёт у вас из подборки.</span></p>
+        </div>
+        <footer class="modal-f">
+            <button class="btn btn-ghost" type="button" data-close>Отмена</button>
+            <button class="btn btn-danger" type="submit">Отправить</button>
+        </footer>
+    </form>
+</dialog>
+<dialog class="modal" id="block" aria-labelledby="h-block">
+    <form method="post" action="/u/{{$u.id}}/block" class="modal-box">{{.Csrf}}
+        {{template "modal-head" (dict "id" "h-block" "t" (printf "Заблокировать: %s?" $u.name))}}
+        <div class="modal-b">
+            <p class="modal-text">Вы перестанете видеть друг друга: во «Встречах», «Рядом» и в симпатиях. Переписка пропадёт у обоих.</p>
+        </div>
+        <footer class="modal-f">
+            <button class="btn btn-ghost" type="button" data-close>Отмена</button>
+            <button class="btn btn-danger" type="submit">Заблокировать</button>
+        </footer>
+    </form>
+</dialog>
+{{- end}}
+{{template "lightbox"}}

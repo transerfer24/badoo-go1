@@ -1,27 +1,40 @@
-{{- /* Симпатии (templates/likes.html). .tab — you|mutual, .likers/.matches — строки выборок, .premium. */ -}}
-<section>
-  <header class="page-head"><h1>Симпатии</h1><a class="btn btn-ghost btn-sm" href="/visitors">{{template "i-eye"}} Гости</a></header>
-  <nav class="tabs" aria-label="Разделы симпатий">
-    <a href="/likes?tab=you" class="{{if eq .tab "you"}}on{{end}}">Вы нравитесь <b>{{len .likers}}</b></a>
-    <a href="/likes?tab=mutual" class="{{if eq .tab "mutual"}}on{{end}}">Взаимно <b>{{len .matches}}</b></a>
-  </nav>
-  {{if eq .tab "you"}}
-    {{if .likers}}
-      {{if .premium}}
+{{- /* Симпатии в дизайне dating2 (likes.php макета). .tab — you|mutual, .likers/.matches — строки выборок, .premium.
+   Без Premium отметившие видны размытыми, и это сказано прямо. «Гости» — третья вкладка (своя страница). */ -}}
+{{.View.SetTitle "Симпатии"}}
+<header class="page-head">
+    <div>
+        <h1>Симпатии</h1>
+        <p class="sub">Человек узнаёт о вашей симпатии, только если отметит вас в ответ.</p>
+    </div>
+</header>
+{{template "likes-tabs" (dict "tab" .tab "you" (len .likers) "mutual" (len .matches))}}
+
+{{- if eq .tab "you"}}
+    {{- if .likers}}
+        {{- if .premium}}
         <div class="grid">{{range .likers}}{{template "person-tile" .}}{{end}}</div>
-      {{else}}
-        <div class="grid grid-locked" aria-hidden="true">{{range .likers}}<div class="tile"><img src="{{avatar .photo .id}}" alt="" loading="lazy"></div>{{end}}</div>
+        {{- else}}
+        <div class="grid">{{range .likers}}{{template "person-tile-locked" .}}{{end}}</div>
         <div class="upsell">
-          <h2>{{len .likers}} человек уже лайкнули вас</h2>
-          <p class="muted">С Premium вы увидите их сразу. Или продолжайте свайпать во «Встречах» — при взаимной симпатии откроется чат.</p>
-          <div class="row"><a class="btn btn-premium" href="/premium">{{template "i-crown"}} Посмотреть с Premium</a><a class="btn btn-ghost" href="/encounters">К встречам</a></div>
+            <div class="side-row">
+                {{icon "crown" 24}}
+                <div class="grow">
+                    <b>{{len .likers}} {{plural (len .likers) "человек отметил" "человека отметили" "человек отметили"}} вас</b>
+                    <p class="small muted">С Premium вы увидите их сразу. Или продолжайте во «Встречах» — при взаимной симпатии откроется переписка. Симпатий от подписки не прибавится.</p>
+                </div>
+                <a class="btn btn-premium" href="/premium">Открыть список</a>
+            </div>
         </div>
-      {{end}}
-    {{else}}
-      <div class="empty"><h2>Пока тихо</h2><p class="muted">Добавьте ещё фото и пройдите верификацию — подтверждённые анкеты получают больше симпатий.</p><a class="btn btn-primary" href="/me">Улучшить анкету</a></div>
-    {{end}}
-  {{else}}
-    {{if .matches}}<div class="grid">{{range .matches}}{{template "person-tile" .}}{{end}}</div>
-    {{else}}<div class="empty"><h2>Взаимных пока нет</h2><p class="muted">Когда вы понравитесь друг другу, человек появится здесь.</p><a class="btn btn-primary" href="/encounters">Встречи</a></div>{{end}}
-  {{end}}
-</section>
+        {{- end}}
+    {{- else}}
+    {{template "empty-state" (dict "icon" "heart" "t" "Пока тихо" "s" "Добавьте ещё фото и пройдите проверку селфи — проверенные анкеты отмечают чаще." "href" "/me" "a" "Улучшить анкету")}}
+    {{- end}}
+{{- else}}
+    {{- if .matches}}
+    <div class="grid">{{range .matches}}{{template "person-tile-plain" .}}{{end}}</div>
+    <p class="grid-note">С каждым из них уже можно переписываться — раздел «Сообщения».</p>
+    {{- else}}
+    {{template "empty-state" (dict "icon" "heart" "t" "Взаимных пока нет" "s" "Когда вы понравитесь друг другу, человек появится здесь, а переписка откроется сама." "href" "/encounters" "a" "К встречам")}}
+    {{- end}}
+{{- end}}
+

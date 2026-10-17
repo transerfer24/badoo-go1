@@ -1,26 +1,75 @@
-{{- /* Чат (templates/chat.html). .match_id, .peer — строка chat.Peer, .messages — строки chat.Messages, .can_send.
-   История уходит в JSON-скрипт: в контексте <script> html/template сам сериализует значение в JSON
-   (в оригинале для этого была функция json). Живые сообщения — SSE /api/events в app.js. */ -}}
-<section class="chat" data-chat="{{.match_id}}">
-  <header class="chat-head">
-    <a class="back" href="/messages" aria-label="К чатам">{{template "i-back"}}</a>
-    <a class="chat-peer" href="/u/{{.peer.id}}">
-      <img class="ava" src="{{avatar .peer.photo .peer.id}}" alt="">
-      <span><b>{{.peer.name}}, {{age .peer.birthdate}}</b> {{if verified .peer.verified}}{{template "badge-verified"}}{{end}}<br>
-      <span class="muted small">{{if online .peer.last_seen}}онлайн{{else}}был(а) {{ago .peer.last_seen}}{{end}}</span></span>
-    </a>
-  </header>
-  <div class="chat-log" data-log>
-    {{if not .messages}}<p class="chat-empty muted center" data-chat-empty>Вы понравились друг другу. Начните с вопроса о чём-то из анкеты — это работает лучше, чем «привет».</p>{{end}}
-  </div>
-  {{if .can_send}}
-  <form class="chat-form" data-chat-form>
-    <label class="sr" for="msg">Сообщение</label>
-    <textarea id="msg" name="body" rows="1" maxlength="2000" placeholder="Сообщение…" required></textarea>
-    <button class="btn btn-primary btn-icon" type="submit" aria-label="Отправить">{{template "i-send"}}</button>
-  </form>
-  {{else}}
-  <div class="chat-locked"><p>Чтобы писать, подтвердите фото — это защищает всех от фейков.</p><a class="btn btn-primary" href="/verify">Пройти верификацию</a></div>
-  {{end}}
-</section>
+{{- /* Переписка в дизайне dating2 (chat.php макета). Слева — список переписок (.threads), справа — беседа.
+   .match_id, .peer — строка chat.Peer, .messages — строки chat.Messages, .can_send, .reasons (жалоба).
+   История уходит в JSON-скрипт, живые сообщения — SSE /api/events (web/static/app.js). */ -}}
+{{- $peer := .peer}}
+<a class="back" href="/messages">{{icon "arrow-left" 18}} Все переписки</a>
+<div class="chat-wrap">
+    <div class="chat-list">
+        {{- range .threads}}
+        <a class="list-row{{if eq (.Int "match_id") $.match_id}} on{{else if .unread}} unread{{end}}" href="/chat/{{.match_id}}">
+            <span class="ava ava-sm{{if online .last_seen}} ava-on{{end}}"><img src="{{avatar .photo .id}}" alt=""></span>
+            <span class="list-main">
+                <span class="list-t">{{.name}}</span>
+                <span class="list-s">{{if .last}}{{if .last_mine}}Вы: {{end}}{{.last}}{{else}}Совпали — напишите первым{{end}}</span>
+            </span>
+            {{- if and .unread (ne (.Int "match_id") $.match_id)}}<b class="count">{{.unread}}</b>{{end}}
+        </a>
+        {{- end}}
+    </div>
+
+    <section class="chat" data-chat="{{.match_id}}">
+        <header class="chat-head">
+            <a class="ava ava-md{{if online $peer.last_seen}} ava-on{{end}}" href="/u/{{$peer.id}}" aria-label="Открыть анкету: {{$peer.name}}">
+                <img src="{{avatar $peer.photo $peer.id}}" alt=""></a>
+            <div class="chat-head-main">
+                <h1 class="chat-head-t">{{$peer.name}}, {{age $peer.birthdate}}{{if verified $peer.verified}}{{template "badge-verified"}}{{end}}</h1>
+                <div class="chat-head-s">{{if online $peer.last_seen}}в сети{{else}}был(а) {{ago $peer.last_seen}}{{end}}</div>
+            </div>
+            <a class="btn btn-quiet btn-sm" href="/u/{{$peer.id}}">Анкета</a>
+            <button class="btn btn-icon" type="button" data-open="chat-menu" aria-label="Пожаловаться или заблокировать">{{icon "dots" 18}}</button>
+        </header>
+
+        <div class="chat-body" data-log>
+            <div class="chat-start"><p>Вы отметили друг друга. Переписка видна только вам двоим.</p></div>
+            {{- if not .messages}}
+            <div class="chat-start" data-chat-empty><p>Начните с вопроса о чём-то из анкеты — это работает лучше, чем «привет».</p></div>
+            {{- end}}
+        </div>
+
+        {{- if .can_send}}
+        <form class="chat-form" data-chat-form>
+            <label class="sr" for="msg">Сообщение</label>
+            <textarea id="msg" name="body" rows="1" maxlength="2000" placeholder="Напишите сообщение" required></textarea>
+            <button class="btn btn-primary btn-icon" type="submit" aria-label="Отправить">{{icon "send" 19}}</button>
+        </form>
+        {{- else}}
+        <div class="chat-locked">
+            <p>Чтобы писать, подтвердите фото селфи — это защищает всех от фейков.</p>
+            <a class="btn btn-primary" href="/verify">{{icon "shield" 17}} Пройти проверку</a>
+        </div>
+        {{- end}}
+    </section>
+</div>
+
+<dialog class="modal" id="chat-menu" aria-labelledby="h-chat-menu">
+    <div class="modal-box">
+        {{template "modal-head" (dict "id" "h-chat-menu" "t" "Что сделать с перепиской")}}
+        <div class="modal-b">
+            <form method="post" action="/u/{{$peer.id}}/report" class="stack">{{.Csrf}}
+                <p class="modal-text">Пожаловаться на {{$peer.name}}:</p>
+                <ul class="opts">
+                    {{- range $i, $r := .reasons}}
+                    <li><label class="opt"><input type="radio" name="reason" value="{{$r}}"{{if eq $i 0}} checked{{end}}><span>{{$r}}</span>{{icon "check" 17}}</label></li>
+                    {{- end}}
+                </ul>
+                <label class="check"><input type="checkbox" name="block" value="1" checked><span>Также заблокировать — переписка пропадёт у обоих</span></label>
+                <button class="btn btn-danger btn-block" type="submit">{{icon "flag" 17}} Отправить жалобу</button>
+            </form>
+            <form method="post" action="/u/{{$peer.id}}/block">{{.Csrf}}
+                <button class="btn btn-ghost btn-block" type="submit">{{icon "ban" 17}} Просто заблокировать</button>
+            </form>
+            <p class="modal-note">{{icon "info" 15}}<span>Блокировка действует сразу. Человек не узнает, что именно вы сделали.</span></p>
+        </div>
+    </div>
+</dialog>
 {{define "scripts"}}<script type="application/json" id="chat-data">{{.messages}}</script>{{end}}

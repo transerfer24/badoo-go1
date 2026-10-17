@@ -1,17 +1,25 @@
-{{- /* Гости (templates/visitors.html). .visitors — строки discovery.Visitors: анкета + photo + dist_km + at. */ -}}
-<section>
-  <header class="page-head"><h1>Гости</h1><span class="muted small">за 30 дней</span></header>
-  {{if .visitors}}
-  <ul class="list">
-    {{range .visitors}}
-    <li><a class="list-row" href="/u/{{.id}}">
-      <img class="ava" src="{{avatar .photo .id}}" alt="">
-      <span class="grow"><b>{{.name}}, {{age .birthdate}}</b> {{if verified .verified}}{{template "badge-verified"}}{{end}}<br><span class="muted small">{{.city}} · {{dist .dist_km}}</span></span>
-      <span class="muted small">{{ago .at}}</span>
-    </a></li>
-    {{end}}
-  </ul>
-  {{else}}
-  <div class="empty"><h2>Гостей пока не было</h2><p class="muted">Здесь появятся те, кто открывал вашу анкету.</p></div>
-  {{end}}
-</section>
+{{- /* Гости в дизайне dating2 — третья вкладка «Симпатий». .visitors — строки discovery.Visitors: анкета + photo + dist_km + at. */ -}}
+{{.View.SetTitle "Гости"}}
+<header class="page-head">
+    <div>
+        <h1>Симпатии</h1>
+        <p class="sub">Гости — кто открывал вашу анкету за 30 дней.</p>
+    </div>
+</header>
+{{template "likes-tabs" (dict "tab" "visitors")}}
+{{- if .visitors}}
+<div class="list">
+    {{- range .visitors}}
+    <a class="list-row" href="/u/{{.id}}">
+        <span class="ava ava-md{{if online .last_seen}} ava-on{{end}}"><img src="{{avatar .photo .id}}" alt=""></span>
+        <span class="list-main">
+            <span class="list-t">{{.name}}, {{age .birthdate}}{{if verified .verified}}{{template "badge-verified"}}{{end}}</span>
+            <span class="list-s">{{with .city}}{{.}} · {{end}}{{dist .dist_km}}</span>
+        </span>
+        <span class="list-time">{{ago .at}}</span>
+    </a>
+    {{- end}}
+</div>
+{{- else}}
+{{template "empty-state" (dict "icon" "eye" "t" "Гостей пока не было" "s" "Здесь появятся те, кто открывал вашу анкету.")}}
+{{- end}}

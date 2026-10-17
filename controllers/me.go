@@ -124,7 +124,8 @@ func (c *MeController) ActionDeleteAccount() error {
 
 func (c *MeController) ActionPremium() error {
 	c.View.Params = web.M{"active": "me"}
-	return c.Render("premium", web.M{"me": users.Current(c.Context), "plans": users.Plans})
+	// dev — тестовый режим (AMURA_DEV): оплата не списывается, страница говорит это прямо
+	return c.Render("premium", web.M{"me": users.Current(c.Context), "plans": users.Plans, "dev": users.DevMode()})
 }
 
 // В dev-режиме Premium активируется без оплаты. В проде здесь будет Stripe Checkout.

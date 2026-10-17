@@ -1,28 +1,92 @@
-{{define "i-cards"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M3 6.5v11M21 6.5v11"/></svg>{{end}}
-{{define "i-pin"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>{{end}}
-{{define "i-heart"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-9.2-9.4C1.7 7.4 3.8 4 7.2 4c2 0 3.6 1.1 4.8 2.8C13.2 5.1 14.8 4 16.8 4c3.4 0 5.5 3.4 4.4 6.6C19.5 15.4 12 20 12 20z"/></svg>{{end}}
-{{define "i-chat"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.1A8 8 0 1 1 20 12z"/></svg>{{end}}
-{{define "i-user"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>{{end}}
-{{define "i-x"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>{{end}}
-{{define "i-undo"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>{{end}}
-{{define "i-check"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.4 1.8 3 .1.9 2.9 2.4 1.8-.9 2.9.9 2.9-2.4 1.8-.9 2.9-3 .1L12 21.5l-2.4-1.8-3-.1-.9-2.9-2.4-1.8.9-2.9-.9-2.9 2.4-1.8.9-2.9 3-.1z"/><path d="M8.5 12l2.5 2.5 4.5-5" class="ic-tick"/></svg>{{end}}
-{{define "i-eye"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>{{end}}
-{{define "i-gear"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.8-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3.3 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3.3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.8H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.1z"/></svg>{{end}}
-{{define "i-crown"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 12H5z"/></svg>{{end}}
-{{define "i-send"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>{{end}}
-{{define "i-back"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>{{end}}
-{{define "i-flag"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>{{end}}
-{{define "i-filter"}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>{{end}}
+{{- /* Ниже — блоки в дизайне dating2 (partials/parts.php макета). Иконки — функцией {{icon "имя" размер}}. */ -}}
 
-{{define "badge-verified"}}<span class="verified" title="Фото подтверждено">{{template "i-check"}}<span class="sr">Фото подтверждено</span></span>{{end}}
+{{- /* Галочка подлинности: подпись обязательна, значок сам по себе не объясняет. */ -}}
+{{define "badge-verified"}}<span class="verified" title="Фотография проверена">{{icon "check" 12}}<span class="sr">фотография проверена</span></span>{{end}}
 
-{{- /* person-tile — строка выборки анкет (users.Cols + photo + dist_km): {{.name}}, {{age .birthdate}}, {{avatar .photo .id}} */ -}}
+{{- /* person-tile — плитка анкеты в сетке. Строка выборки (users.Cols + photo + dist_km): {{.name}}, {{age .birthdate}}.
+   Кнопка-сердце ставит симпатию через /api/vote (app.js, data-tile-like) — как в колоде, без перехода со страницы. */ -}}
 {{define "person-tile"}}
-<a class="tile" href="/u/{{.id}}">
-  <img src="{{avatar .photo .id}}" alt="{{.name}}" loading="lazy">
-  <span class="tile-info">
-    <span class="tile-name">{{.name}}, {{age .birthdate}} {{if verified .verified}}{{template "badge-verified"}}{{end}}</span>
-    <span class="tile-meta">{{if online .last_seen}}<span class="dot-online" aria-label="онлайн"></span>{{end}}{{dist .dist_km}}</span>
-  </span>
-</a>
+<div class="tile">
+    <img src="{{avatar .photo .id}}" alt="" loading="lazy">
+    <a class="tile-hit" href="/u/{{.id}}" aria-label="{{.name}}, {{age .birthdate}} — открыть анкету"></a>
+    {{- if online .last_seen}}<span class="pill pill-glass pill-top"><i class="dot-online"></i>в сети</span>{{end}}
+    <div class="tile-info">
+        <div class="tile-name">{{.name}}, {{age .birthdate}}{{if verified .verified}}{{template "badge-verified"}}{{end}}</div>
+        <div class="tile-meta">{{icon "map-pin" 13}}{{dist .dist_km}}{{with .city}} · {{.}}{{end}}</div>
+    </div>
+    <button class="tile-like" type="button" data-tile-like="{{.id}}" aria-pressed="false" aria-label="Отметить: {{.name}}">{{icon "heart" 19}}</button>
+</div>
 {{end}}
+
+{{- /* person-tile-plain — та же плитка без сердца: взаимные пары, гости (симпатия уже есть или не к месту). */ -}}
+{{define "person-tile-plain"}}
+<div class="tile">
+    <img src="{{avatar .photo .id}}" alt="" loading="lazy">
+    <a class="tile-hit" href="/u/{{.id}}" aria-label="{{.name}}, {{age .birthdate}} — открыть анкету"></a>
+    {{- if online .last_seen}}<span class="pill pill-glass pill-top"><i class="dot-online"></i>в сети</span>{{end}}
+    <div class="tile-info">
+        <div class="tile-name">{{.name}}, {{age .birthdate}}{{if verified .verified}}{{template "badge-verified"}}{{end}}</div>
+        <div class="tile-meta">{{icon "map-pin" 13}}{{dist .dist_km}}{{with .city}} · {{.}}{{end}}</div>
+    </div>
+</div>
+{{end}}
+
+{{- /* person-tile-locked — плитка скрытой симпатии (без Premium): лицо размыто, ведёт на подписку. */ -}}
+{{define "person-tile-locked"}}
+<div class="tile tile-locked">
+    <img src="{{avatar .photo .id}}" alt="" loading="lazy">
+    <a class="tile-hit" href="/premium" aria-label="Открыть, кто вас отметил"></a>
+    <div class="tile-lock">{{icon "lock" 26}}</div>
+    <div class="tile-info"><div class="tile-name">Профиль скрыт</div></div>
+</div>
+{{end}}
+
+{{- /* empty-state — пустое состояние: что случилось, почему и что сделать дальше.
+   {{template "empty-state" (dict "icon" "heart" "t" "Заголовок" "s" "Пояснение" "href" "/encounters" "a" "Кнопка")}} */ -}}
+{{define "empty-state"}}
+<div class="empty">
+    <div class="empty-art">{{icon .icon 28}}</div>
+    <h2 class="empty-h">{{.t}}</h2>
+    <p>{{.s}}</p>
+    {{- if .href}}<div class="empty-act"><a class="btn btn-primary" href="{{.href}}">{{.a}}</a></div>{{end}}
+</div>
+{{end}}
+
+{{- /* lightbox — просмотр фото крупно; список снимков подставляет app.js (галерея анкеты, мои фото). */ -}}
+{{define "lightbox"}}
+<dialog class="modal lightbox" id="photo-view" aria-label="Просмотр фотографии">
+    <div class="lb-box">
+        <img class="lb-img" alt="">
+        <button class="lb-x" type="button" aria-label="Закрыть">{{icon "x" 20}}</button>
+        <button class="lb-nav lb-prev" type="button" aria-label="Предыдущая">{{icon "chevron-left" 22}}</button>
+        <button class="lb-nav lb-next" type="button" aria-label="Следующая">{{icon "chevron-right" 22}}</button>
+        <div class="lb-bar"><span class="lb-count" data-lb-count></span></div>
+    </div>
+</dialog>
+{{end}}
+
+{{- /* modal-head — шапка окна: заголовок и крестик (кнопка закрывает ближайший <dialog>, app.js). */ -}}
+{{define "modal-head"}}
+<header class="modal-h">
+    <h2 id="{{.id}}">{{.t}}</h2>
+    <button class="modal-x" type="button" data-close aria-label="Закрыть">{{icon "x" 18}}</button>
+</header>
+{{end}}
+
+{{- /* likes-tabs — вкладки «Симпатий»: вас отметили / взаимно / гости. */ -}}
+{{define "likes-tabs"}}
+<nav class="tabs" aria-label="Списки">
+    <a href="/likes?tab=you"{{if eq .tab "you"}} class="on" aria-current="page"{{end}}>Вас отметили{{if .you}} <b>{{.you}}</b>{{end}}</a>
+    <a href="/likes?tab=mutual"{{if eq .tab "mutual"}} class="on" aria-current="page"{{end}}>Взаимно{{if .mutual}} <b>{{.mutual}}</b>{{end}}</a>
+    <a href="/visitors"{{if eq .tab "visitors"}} class="on" aria-current="page"{{end}}>Гости</a>
+</nav>
+{{- end}}
+
+{{- /* theme-switch — переключатель темы: как в системе / светлая / тёмная (app.js, localStorage «amura-theme»). */ -}}
+{{define "theme-switch"}}
+<div class="theme" role="group" aria-label="Оформление">
+    <button type="button" data-theme="system" aria-pressed="false" title="Как в системе">{{icon "theme-auto" 17}}<span class="sr">Как в системе</span></button>
+    <button type="button" data-theme="light" aria-pressed="false" title="Светлая тема">{{icon "sun" 17}}<span class="sr">Светлая тема</span></button>
+    <button type="button" data-theme="dark" aria-pressed="false" title="Тёмная тема">{{icon "moon" 17}}<span class="sr">Тёмная тема</span></button>
+</div>
+{{- end}}

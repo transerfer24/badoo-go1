@@ -54,6 +54,16 @@
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-anim")));
   });
 
+  // ---------- Окна (<dialog>) ----------
+  // [data-open="id"] открывает окно, [data-close] внутри — закрывает; нажатие по затемнению тоже закрывает.
+  document.addEventListener("click", (e) => {
+    const o = e.target.closest("[data-open]");
+    if (o) { const d = document.getElementById(o.dataset.open); if (d) { e.preventDefault(); d.showModal(); } return; }
+    const c = e.target.closest("[data-close]");
+    if (c) { c.closest("dialog")?.close(); return; }
+    if (e.target.tagName === "DIALOG" && e.target.open) e.target.close();
+  });
+
   // ---------- Мелочи ----------
   $$("[data-back]").forEach((a) => a.addEventListener("click", (e) => {
     if (history.length > 1 && document.referrer.startsWith(location.origin)) { e.preventDefault(); history.back(); }
@@ -101,18 +111,6 @@
     });
   });
 
-  // Галерея профиля
-  $$("[data-gallery]").forEach((g) => {
-    const imgs = $$("img", g), bars = $$(".card-bars i", g);
-    let i = 0;
-    const show = (n) => {
-      i = (n + imgs.length) % imgs.length;
-      imgs.forEach((im, k) => (im.hidden = k !== i));
-      bars.forEach((b, k) => b.classList.toggle("on", k === i));
-    };
-    $(".gal-prev", g)?.addEventListener("click", () => show(i - 1));
-    $(".gal-next", g)?.addEventListener("click", () => show(i + 1));
-  });
 
   // ---------- Реалтайм: счётчики, тосты ----------
   const handlers = { message: [], match: [], like: [], read: [] };
@@ -139,6 +137,104 @@
       });
     }
   }
+
+  // ---------- Просмотр фото (lightbox из макета dating2) ----------
+  // Один <dialog id="photo-view"> на страницу: список снимков передают при открытии (галерея анкеты, мои фото).
+  const LB = (() => {
+    const dlg = $("#photo-view");
+    if (!dlg) return null;
+    const img = $(".lb-img", dlg), count = $("[data-lb-count]", dlg), prev = $(".lb-prev", dlg), next = $(".lb-next", dlg);
+    let list = [], at = 0;
+    function draw() {
+      at = Math.max(0, Math.min(at, list.length - 1));
+      img.src = list[at].src; img.alt = list[at].alt || "";
+      count.textContent = `${at + 1} из ${list.length}`;
+      prev.disabled = at === 0; next.disabled = at === list.length - 1;
+      prev.hidden = next.hidden = list.length < 2;
+    }
+    const step = (d) => { at += d; draw(); };
+    prev.addEventListener("click", () => step(-1));
+    next.addEventListener("click", () => step(1));
+    $(".lb-x", dlg).addEventListener("click", () => dlg.close());
+    document.addEventListener("keydown", (e) => {
+      if (!dlg.open) return;
+      if (e.key === "ArrowLeft") step(-1);
+      if (e.key === "ArrowRight") step(1);
+    });
+    let x0 = null;   // пролистывание пальцем
+    img.addEventListener("dragstart", (e) => e.preventDefault());
+    img.addEventListener("pointerdown", (e) => { x0 = e.clientX; e.preventDefault(); });
+    img.addEventListener("pointerup", (e) => {
+      if (x0 === null) return;
+      const dx = e.clientX - x0; x0 = null;
+      if (Math.abs(dx) > 50) step(dx > 0 ? -1 : 1);
+    });
+    return { open(items, i) { list = items; at = i || 0; draw(); if (!dlg.open) dlg.showModal(); } };
+  })();
+
+  // ---------- Галерея анкеты: миниатюра меняет крупный снимок, крупный открывает просмотр ----------
+  $$("[data-gal]").forEach((gal) => {
+    const main = $("[data-gal-main]", gal), at = $("[data-gal-at]", gal), thumbs = $$(".gal-thumb", gal);
+    const shots = thumbs.length ? thumbs.map((t) => ({ src: $("img", t).src, alt: "" })) : [{ src: main.src, alt: main.alt }];
+    let i = 0;
+    function show(n) {
+      i = n;
+      const fig = main.parentElement;
+      fig.classList.add("swapping");
+      setTimeout(() => { main.src = shots[i].src; main.alt = `Фотография ${i + 1}`; fig.classList.remove("swapping"); }, 120);
+      if (at) at.textContent = i + 1;
+      thumbs.forEach((t, k) => { t.classList.toggle("on", k === i); t.setAttribute("aria-pressed", k === i ? "true" : "false"); });
+    }
+    thumbs.forEach((t, k) => t.addEventListener("click", () => show(k)));
+    $(".gal-zoom", gal)?.addEventListener("click", () => LB && LB.open(shots, i));
+  });
+
+  // ---------- Мой профиль ----------
+  // Мои фото крупно: тот же просмотр, список — все снимки сетки по порядку.
+  const myPhotos = $("[data-photos]");
+  if (myPhotos && LB) myPhotos.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-photo-i]");
+    if (!b) return;
+    const items = $$(".photo img", myPhotos).map((im) => ({ src: im.src, alt: im.alt }));
+    LB.open(items, Number(b.dataset.photoI));
+  });
+  // Опасные формы спрашивают подтверждение (удаление фото): data-confirm="текст".
+  document.addEventListener("submit", (e) => {
+    const f = e.target.closest("form[data-confirm]");
+    if (f && !confirm(f.dataset.confirm)) e.preventDefault();
+  });
+  // Чипсы выбора: плашка помечена .on вместе с галочкой внутри — не только цветом.
+  $$(".chips-pick input[type=checkbox]").forEach((i) => i.addEventListener("change", () => i.closest(".pill")?.classList.toggle("on", i.checked)));
+  // Окна правки анкеты (внутри формы #me-form): «Сохранить» отправляет форму целиком, а закрытие без сохранения
+  // (Отмена, Esc, клик мимо) возвращает поля окна как были — иначе недоделанная правка уехала бы со следующим сохранением.
+  const meForm = $("#me-form");
+  if (meForm) {
+    let sending = false;
+    meForm.addEventListener("submit", () => (sending = true));
+    $$("dialog", meForm).forEach((d) => {
+      let snap = [];
+      const fields = () => $$("input, select, textarea", d);
+      new MutationObserver(() => {
+        if (d.open) snap = fields().map((f) => (f.type === "radio" || f.type === "checkbox" ? f.checked : f.value));
+      }).observe(d, { attributes: true, attributeFilter: ["open"] });
+      d.addEventListener("close", () => {
+        if (sending) return;
+        fields().forEach((f, k) => { if (f.type === "radio" || f.type === "checkbox") f.checked = snap[k]; else f.value = snap[k]; });
+      });
+    });
+  }
+
+  // ---------- Сердце на плитке анкеты: симпатия без ухода со страницы (тот же /api/vote, что у колоды) ----------
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-tile-like]");
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    try {
+      const res = await api("/api/vote", { target: Number(b.dataset.tileLike), liked: true });
+      b.classList.add("liked"); b.setAttribute("aria-pressed", "true");
+      toast(res && res.match ? `<a href="/chat/${res.matchId}">Это взаимно! Напишите первым</a>` : "Симпатия отправлена", res && res.match ? 6000 : 2500);
+    } catch (_) { b.disabled = false; toast("Не получилось отправить симпатию."); }
+  });
 
   // ---------- Встречи (разметка макета dating2: encounters.php) ----------
   // Сверху колоды — ПОСЛЕДНЯЯ карточка в DOM (.card:nth-last-child в стилях): queue[0] добавляется последней.
@@ -344,12 +440,13 @@
       $("[data-chat-empty]", chat)?.remove();
       const d = new Date(m.at);
       const day = fmtDay(d);
-      if (day !== lastDay) { const s = document.createElement("div"); s.className = "day"; s.textContent = day; log.append(s); lastDay = day; }
+      if (day !== lastDay) { const s = document.createElement("div"); s.className = "chat-day"; s.textContent = day; log.append(s); lastDay = day; }
       const b = document.createElement("div");
-      b.className = "bubble" + (m.mine ? " mine" : "") + (pending ? " pending" : "");
+      b.className = "bubble " + (m.mine ? "bubble-out" : "bubble-in") + (pending ? " pending" : "");
       b.dataset.id = m.id || "";
       b.textContent = m.body;
-      const t = document.createElement("time");
+      const t = document.createElement("span");
+      t.className = "bubble-time";
       t.textContent = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) + (m.mine ? (m.read ? " · прочитано" : " · отправлено") : "");
       b.append(t);
       log.append(b);
@@ -367,7 +464,7 @@
     });
     handlers.read.push((d) => {
       if (d.matchId !== mid) return false;
-      $$(".bubble.mine time", log).forEach((t) => (t.textContent = t.textContent.replace("отправлено", "прочитано")));
+      $$(".bubble-out .bubble-time", log).forEach((t) => (t.textContent = t.textContent.replace("отправлено", "прочитано")));
       return true;
     });
     // догружаем пропущенное, если вкладка была неактивна

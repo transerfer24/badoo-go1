@@ -1,71 +1,176 @@
+{{- /* Мой профиль в дизайне dating2 (me.php макета). Вся анкета — одна форма POST /me (#me-form), как раньше:
+   параметры — строками, правка каждой в окне (<dialog> внутри формы; «Сохранить» отправляет всю форму,
+   «Отмена» возвращает значения окна как были — app.js). Фото — отдельные формы: главное / удалить / загрузить. */ -}}
 {{.View.SetTitle "Мой профиль"}}
-<section class="me">
-  <header class="page-head">
-    <h1>Мой профиль</h1>
-    <div class="row">
-      <a class="btn btn-ghost btn-sm" href="/u/{{.me.Id}}">{{template "i-eye"}} Как меня видят</a>
-      <a class="btn btn-ghost btn-sm" href="/settings">{{template "i-gear"}} Настройки</a>
+{{- $me := .me}}
+<header class="page-head">
+    <div><h1>Мой профиль</h1><p class="sub">Так вас видят другие.</p></div>
+    <div class="page-head-end">
+        <a class="btn btn-ghost btn-sm" href="/u/{{$me.Id}}">{{icon "eye" 17}} Посмотреть как чужой</a>
+        <a class="btn btn-ghost btn-sm" href="/settings">{{icon "settings" 17}} Настройки</a>
     </div>
-  </header>
-  {{if .error}}<p class="alert" role="alert">{{.error}}</p>{{end}}
+</header>
+{{- if .error}}<p class="alert" role="alert">{{.error}}</p>{{end}}
 
-  <div class="me-status">
-    {{if .me.IsVerified}}<div class="pill pill-ok">{{template "i-check"}} Фото подтверждено</div>
-    {{else if eq .me.Verified 1}}<div class="pill">Селфи на проверке</div>
-    {{else}}<a class="pill pill-warn" href="/verify">{{template "i-check"}} Пройдите верификацию, чтобы писать сообщения</a>{{end}}
-    {{if .me.IsPremium}}<a class="pill pill-premium" href="/premium">{{template "i-crown"}} Premium до {{.me.PremiumDate}}</a>{{end}}
-  </div>
+<div class="me-status">
+    <div class="me-pct">{{$me.Filled}}%</div>
+    <div class="me-status-main">
+        <div class="me-status-t">{{if ge $me.Filled 100}}Профиль заполнен{{else if ge $me.Filled 60}}Профиль почти готов{{else}}Заполните профиль{{end}}</div>
+        <div class="me-status-s">{{with $me.FillHint}}{{.}}{{else}}Такие анкеты открывают чаще всего.{{end}}</div>
+        <div class="bar" style="--p:{{$me.Filled}}"><i></i></div>
+    </div>
+    <div class="row">
+        {{- if $me.IsVerified}}<span class="pill pill-ok">{{icon "check" 13}} Фото проверено</span>
+        {{- else if eq $me.Verified 1}}<span class="pill">Селфи на проверке</span>
+        {{- else}}<a class="btn btn-primary btn-sm" href="/verify">{{icon "shield" 16}} Пройти проверку</a>{{end}}
+        {{- if $me.IsPremium}}<a class="pill pill-premium" href="/premium">{{icon "crown" 13}} Premium до {{$me.PremiumDate}}</a>{{end}}
+    </div>
+</div>
 
-  <h2 class="h3">Фото <span class="muted small">{{len .photos}} из {{.max_photos}}</span></h2>
-  <div class="photos">
-    {{range $i, $p := .photos}}
-    <figure class="photo">
-      <img src="{{$p.Url}}" alt="Моё фото {{add $i 1}}">
-      {{if eq $i 0}}<figcaption class="photo-main">Главное</figcaption>{{end}}
-      <div class="photo-tools">
-        {{if $i}}<form method="post" action="/me/photos/{{$p.Id}}/main">{{$.Csrf}}<button class="btn btn-xs" type="submit">Сделать главным</button></form>{{end}}
-        <form method="post" action="/me/photos/{{$p.Id}}/delete">{{$.Csrf}}<button class="btn btn-xs btn-danger" type="submit" aria-label="Удалить фото {{add $i 1}}">Удалить</button></form>
-      </div>
-    </figure>
-    {{end}}
-    {{if lt (len .photos) .max_photos}}
-    <form class="photo photo-add" method="post" action="/me/photos" enctype="multipart/form-data" data-autosubmit>
-      {{.Csrf}}
-      <label><input type="file" name="photo" accept="image/jpeg,image/png" required><span>+<br><small>JPG или PNG</small></span></label>
-      <noscript><button class="btn btn-sm" type="submit">Загрузить</button></noscript>
-    </form>
-    {{end}}
-  </div>
+<section class="sec" id="photos">
+    <div class="sec-h">
+        <div><h2>Фотографии</h2><p>Нажмите на фото, чтобы посмотреть его крупно. Первое — главное.</p></div>
+        <span class="pill">{{len .photos}} из {{.max_photos}}</span>
+    </div>
+    <div class="photos" data-photos>
+        {{- range $i, $p := .photos}}
+        <figure class="photo{{if eq $i 0}} photo-main{{end}}">
+            <img src="{{$p.Url}}" alt="Моя фотография {{add $i 1}}">
+            <button class="photo-open" type="button" data-photo-i="{{$i}}" aria-label="Открыть фотографию {{add $i 1}}"></button>
+            <div class="photo-bar">
+                {{- if $i}}
+                <form method="post" action="/me/photos/{{$p.Id}}/main">{{$.Csrf}}
+                    <button class="photo-act photo-star" type="submit" aria-label="Сделать главной">{{icon "star" 16}}</button></form>
+                {{- end}}
+                <form method="post" action="/me/photos/{{$p.Id}}/delete" data-confirm="Удалить фотографию {{add $i 1}}?">{{$.Csrf}}
+                    <button class="photo-act photo-trash" type="submit" aria-label="Удалить фотографию {{add $i 1}}">{{icon "trash" 16}}</button></form>
+            </div>
+        </figure>
+        {{- end}}
+        {{- if lt (len .photos) .max_photos}}
+        <form method="post" action="/me/photos" enctype="multipart/form-data" data-autosubmit>{{.Csrf}}
+            <label class="photo-add">{{icon "plus" 22}} Добавить<small>JPG или PNG</small>
+                <input class="sr" type="file" name="photo" accept="image/jpeg,image/png" required></label>
+            <noscript><button class="btn btn-sm" type="submit">Загрузить</button></noscript>
+        </form>
+        {{- end}}
+    </div>
+    {{- if not $me.IsVerified}}
+    <p class="hint">{{icon "shield" 16}}
+        {{if eq $me.Verified 1}}Селфи на проверке — галочка появится, как только модерация сверит его с фото.
+        {{else}}Пройдите проверку фотографии — анкеты с галочкой открывают чаще. <a class="linkish" href="/verify">Пройти</a>{{end}}</p>
+    {{- end}}
+</section>
 
-  <form method="post" action="/me" class="stack form-card" data-geo>
+<form method="post" action="/me" id="me-form" data-geo>
     {{.Csrf}}
     <input type="hidden" name="lat"><input type="hidden" name="lng">
-    <div class="cols">
-      <label class="field"><span>Имя</span><input name="name" value="{{.me.Name}}" required minlength="2" maxlength="40"></label>
-      <label class="field"><span>Дата рождения</span><input type="date" name="birthdate" value="{{.me.Birthdate}}" required max="{{.max}}"></label>
-    </div>
-    <div class="cols">
-      <label class="field"><span>Пол</span><select name="gender">
-        <option value="f" {{if eq .me.Gender "f"}}selected{{end}}>Женщина</option>
-        <option value="m" {{if eq .me.Gender "m"}}selected{{end}}>Мужчина</option>
-        <option value="x" {{if eq .me.Gender "x"}}selected{{end}}>Другое</option></select></label>
-      <label class="field"><span>Ищу</span><select name="seeking">
-        <option value="f" {{if eq .me.Seeking "f"}}selected{{end}}>Женщин</option>
-        <option value="m" {{if eq .me.Seeking "m"}}selected{{end}}>Мужчин</option>
-        <option value="any" {{if eq .me.Seeking "any"}}selected{{end}}>Всех</option></select></label>
-    </div>
-    <div class="cols">
-      <label class="field"><span>Город</span><select name="city">{{range .cities}}<option data-lat="{{.Lat}}" data-lng="{{.Lng}}" {{if eq .Name $.me.City}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
-      <label class="field"><span>Рост, см</span><input type="number" name="height" min="120" max="230" value="{{if .me.Height}}{{.me.Height}}{{end}}"></label>
-    </div>
-    <button type="button" class="btn btn-ghost btn-sm" data-geo-btn>{{template "i-pin"}} Обновить геопозицию</button>
-    <small class="muted" data-geo-status></small>
-    <label class="field"><span>Что ищу</span><select name="intent"><option value="">Не указывать</option>
-      {{range $k, $v := intentLabels}}<option value="{{$k}}" {{if eq $k $.me.Intent}}selected{{end}}>{{$v}}</option>{{end}}</select></label>
-    <label class="field"><span>О себе</span><textarea name="bio" rows="4" maxlength="500">{{.me.Bio}}</textarea></label>
-    <fieldset class="field"><legend>Интересы <small class="muted">до 10</small></legend>
-      <div class="chips chips-pick">{{range .interests}}<label><input type="checkbox" name="interests" value="{{.}}" {{if index $.mine .}}checked{{end}}><span>{{.}}</span></label>{{end}}</div>
-    </fieldset>
+
+    <section class="sec">
+        <div class="sec-h"><div><h2>О себе</h2><p>Две-три фразы работают лучше, чем список достоинств.</p></div></div>
+        <div class="form-card">
+            <label class="field"><span>Коротко о себе</span>
+                <textarea name="bio" rows="3" maxlength="500">{{$me.Bio}}</textarea>
+                <i class="field-hint">Видно всем, кому вы попадаетесь.</i></label>
+        </div>
+    </section>
+
+    <section class="sec">
+        <div class="sec-h"><div><h2>Параметры</h2><p>Нажмите на строку, чтобы поменять.</p></div></div>
+        <div class="rows">
+            {{template "me-row" (dict "id" "name" "t" "Имя" "v" $me.Name)}}
+            {{template "me-row" (dict "id" "birthdate" "t" "Дата рождения" "v" $me.Birthdate)}}
+            {{template "me-row" (dict "id" "gender" "t" "Пол" "v" (gender $me.Gender))}}
+            {{template "me-row" (dict "id" "seeking" "t" "Кого ищу" "v" (index (dict "f" "Женщин" "m" "Мужчин" "any" "Всех") $me.Seeking))}}
+            {{template "me-row" (dict "id" "city" "t" "Город" "v" $me.City)}}
+            {{template "me-row" (dict "id" "height" "t" "Рост" "v" (or (and $me.Height (printf "%d см" $me.Height)) "Не указан"))}}
+            {{template "me-row" (dict "id" "intent" "t" "Что ищу" "v" (or (intent $me.Intent) "Не указано"))}}
+        </div>
+    </section>
+
+    <section class="sec">
+        <div class="sec-h">
+            <div><h2>Интересы</h2><p>По ним находят общее и начинают разговор.</p></div>
+            <span class="pill">до 10</span>
+        </div>
+        <ul class="chips-pick">
+            {{- range .interests}}
+            <li><label class="pill{{if index $.mine .}} on{{end}}"><input type="checkbox" name="interests" value="{{.}}"{{if index $.mine .}} checked{{end}}>{{.}}</label></li>
+            {{- end}}
+        </ul>
+    </section>
+
+    <div class="me-save"><button class="btn btn-primary btn-lg" type="submit">Сохранить изменения</button></div>
+
+    {{- /* Окна правки — внутри формы: их поля уходят вместе с остальными. required нет — закрытое окно не сфокусировать. */}}
+    <dialog class="modal" id="edit-name" aria-labelledby="h-edit-name">
+        <div class="modal-box">{{template "modal-head" (dict "id" "h-edit-name" "t" "Имя")}}
+            <div class="modal-b"><label class="field"><span class="sr">Имя</span><input name="name" value="{{$me.Name}}" minlength="2" maxlength="40" autocomplete="given-name"></label>
+                <p class="modal-note">{{icon "info" 15}}<span>Видно всем. Лучше настоящее — так проще начать разговор.</span></p></div>
+            {{template "me-dialog-foot"}}</div>
+    </dialog>
+    <dialog class="modal" id="edit-birthdate" aria-labelledby="h-edit-birthdate">
+        <div class="modal-box">{{template "modal-head" (dict "id" "h-edit-birthdate" "t" "Дата рождения")}}
+            <div class="modal-b"><label class="field"><span class="sr">Дата рождения</span><input type="date" name="birthdate" value="{{$me.Birthdate}}" max="{{.max}}"></label>
+                <p class="modal-note">{{icon "info" 15}}<span>Другим виден только возраст.</span></p></div>
+            {{template "me-dialog-foot"}}</div>
+    </dialog>
+    <dialog class="modal" id="edit-gender" aria-labelledby="h-edit-gender">
+        <div class="modal-box">{{template "modal-head" (dict "id" "h-edit-gender" "t" "Пол")}}
+            <div class="modal-b"><ul class="opts">
+                {{template "me-opt" (dict "n" "gender" "v" "f" "t" "Женщина" "cur" $me.Gender)}}
+                {{template "me-opt" (dict "n" "gender" "v" "m" "t" "Мужчина" "cur" $me.Gender)}}
+                {{template "me-opt" (dict "n" "gender" "v" "x" "t" "Другое" "cur" $me.Gender)}}
+            </ul></div>
+            {{template "me-dialog-foot"}}</div>
+    </dialog>
+    <dialog class="modal" id="edit-seeking" aria-labelledby="h-edit-seeking">
+        <div class="modal-box">{{template "modal-head" (dict "id" "h-edit-seeking" "t" "Кого ищу")}}
+            <div class="modal-b"><ul class="opts">
+                {{template "me-opt" (dict "n" "seeking" "v" "f" "t" "Женщин" "cur" $me.Seeking)}}
+                {{template "me-opt" (dict "n" "seeking" "v" "m" "t" "Мужчин" "cur" $me.Seeking)}}
+                {{template "me-opt" (dict "n" "seeking" "v" "any" "t" "Всех" "cur" $me.Seeking)}}
+            </ul></div>
+            {{template "me-dialog-foot"}}</div>
+    </dialog>
+    <dialog class="modal" id="edit-city" aria-labelledby="h-edit-city">
+        <div class="modal-box">{{template "modal-head" (dict "id" "h-edit-city" "t" "Город")}}
+            <div class="modal-b">
+                <label class="field"><span class="sr">Город</span><select name="city">{{range .cities}}<option data-lat="{{.Lat}}" data-lng="{{.Lng}}"{{if eq .Name $me.City}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+                <button type="button" class="btn btn-quiet" data-geo-btn>{{icon "map-pin" 17}} Определить по геопозиции</button>
+                <p class="modal-note">{{icon "info" 15}}<span data-geo-status>Другим видно только расстояние, не точка на карте.</span></p>
+            </div>
+            {{template "me-dialog-foot"}}</div>
+    </dialog>
+    <dialog class="modal" id="edit-height" aria-labelledby="h-edit-height">
+        <div class="modal-box">{{template "modal-head" (dict "id" "h-edit-height" "t" "Рост")}}
+            <div class="modal-b"><label class="field"><span>Рост, см</span><input type="number" name="height" min="120" max="230" value="{{if $me.Height}}{{$me.Height}}{{end}}" placeholder="Не указан"></label>
+                <p class="modal-note">{{icon "info" 15}}<span>Можно оставить пустым — покажем только заполненное.</span></p></div>
+            {{template "me-dialog-foot"}}</div>
+    </dialog>
+    <dialog class="modal" id="edit-intent" aria-labelledby="h-edit-intent">
+        <div class="modal-box">{{template "modal-head" (dict "id" "h-edit-intent" "t" "Что ищу")}}
+            <div class="modal-b"><ul class="opts">
+                {{template "me-opt" (dict "n" "intent" "v" "" "t" "Не указывать" "cur" $me.Intent)}}
+                {{- range $k, $v := intentLabels}}{{template "me-opt" (dict "n" "intent" "v" $k "t" $v "cur" $me.Intent)}}{{end}}
+            </ul></div>
+            {{template "me-dialog-foot"}}</div>
+    </dialog>
+</form>
+{{template "lightbox"}}
+
+{{- define "me-row"}}
+<button class="row-i" type="button" data-open="edit-{{.id}}">
+    <span class="row-main"><span class="row-t">{{.t}}</span><span class="row-s">{{.v}}</span></span>
+    <span class="row-end">{{icon "pencil" 17}}</span>
+</button>
+{{- end}}
+{{- define "me-opt"}}
+<li><label class="opt"><input type="radio" name="{{.n}}" value="{{.v}}"{{if eq .v .cur}} checked{{end}}><span>{{.t}}</span>{{icon "check" 17}}</label></li>
+{{- end}}
+{{- define "me-dialog-foot"}}
+<footer class="modal-f">
+    <button class="btn btn-ghost" type="button" data-close data-revert>Отмена</button>
     <button class="btn btn-primary" type="submit">Сохранить</button>
-  </form>
-</section>
+</footer>
+{{- end}}

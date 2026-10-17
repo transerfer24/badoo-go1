@@ -1,24 +1,44 @@
-{{- /* Чаты (templates/messages.html). .threads — строки chat.Threads: match_id, last, last_mine, last_at, unread + анкета
-   собеседника (name, photo, last_seen…). Пары без сообщений (last пустой) — «новые», остальные — список. */ -}}
-{{$new := 0}}{{range .threads}}{{if not .last}}{{$new = 1}}{{end}}{{end}}
-{{$active := 0}}{{range .threads}}{{if .last}}{{$active = 1}}{{end}}{{end}}
-<section>
-  <header class="page-head"><h1>Чаты</h1></header>
-  {{if $new}}
-  <h2 class="h3">Новые пары</h2>
-  <div class="strip">{{range .threads}}{{if not .last}}<a href="/chat/{{.match_id}}" class="strip-item"><img class="ava ava-lg" src="{{avatar .photo .id}}" alt=""><span>{{.name}}</span></a>{{end}}{{end}}</div>
-  {{end}}
-  {{if $active}}
-  <ul class="list">
-    {{range .threads}}{{if .last}}
-    <li><a class="list-row {{if .unread}}unread{{end}}" href="/chat/{{.match_id}}">
-      <span class="ava-wrap"><img class="ava" src="{{avatar .photo .id}}" alt="">{{if online .last_seen}}<span class="dot-online"></span>{{end}}</span>
-      <span class="grow"><b>{{.name}}</b><br><span class="muted small ellipsis">{{if .last_mine}}Вы: {{end}}{{.last}}</span></span>
-      <span class="list-end"><span class="muted small">{{ago .last_at}}</span>{{if .unread}}<b class="count">{{.unread}}</b>{{end}}</span>
-    </a></li>
-    {{end}}{{end}}
-  </ul>
-  {{else if not $new}}
-  <div class="empty"><h2>Здесь будут ваши разговоры</h2><p class="muted">Чат открывается, когда симпатия взаимна.</p><a class="btn btn-primary" href="/encounters">Начать знакомиться</a></div>
-  {{end}}
+{{- /* Сообщения в дизайне dating2 (messages.php макета). .threads — строки chat.Threads: match_id, last, last_mine,
+   last_at, unread + анкета собеседника. Пары без сообщений (last пустой) — «совпали, но ещё не написали». */ -}}
+{{.View.SetTitle "Сообщения"}}
+{{- $new := 0}}{{range .threads}}{{if not .last}}{{$new = 1}}{{end}}{{end}}
+{{- $active := 0}}{{$unread := 0}}{{range .threads}}{{if .last}}{{$active = 1}}{{end}}{{$unread = add $unread (.Int "unread")}}{{end}}
+<header class="page-head">
+    <div>
+        <h1>Сообщения</h1>
+        <p class="sub">{{if $unread}}{{$unread}} {{plural $unread "новое сообщение" "новых сообщения" "новых сообщений"}}{{else if $active}}Все сообщения прочитаны{{else}}Переписка открывается, когда симпатия взаимна{{end}}</p>
+    </div>
+</header>
+
+{{- if $new}}
+<section class="news">
+    <h2 class="news-h">Совпали, но ещё не написали</h2>
+    <ul class="news-row">
+        {{- range .threads}}{{if not .last}}
+        <li><a href="/chat/{{.match_id}}">
+            <span class="ava ava-lg{{if online .last_seen}} ava-on{{end}}"><img src="{{avatar .photo .id}}" alt=""></span>
+            <b>{{.name}}</b>
+        </a></li>
+        {{- end}}{{end}}
+    </ul>
+    <p class="small muted">Первое сообщение написать проще, чем кажется: спросите про то, что у человека в анкете.</p>
 </section>
+{{- end}}
+
+{{- if $active}}
+<div class="list">
+    {{- range .threads}}{{if .last}}
+    <a class="list-row{{if .unread}} unread{{end}}" href="/chat/{{.match_id}}">
+        <span class="ava ava-md{{if online .last_seen}} ava-on{{end}}"><img src="{{avatar .photo .id}}" alt=""></span>
+        <span class="list-main">
+            <span class="list-t">{{.name}}{{if verified .verified}}{{template "badge-verified"}}{{end}}</span>
+            <span class="list-s">{{if .last_mine}}Вы: {{end}}{{.last}}</span>
+        </span>
+        <span class="list-time">{{ago .last_at}}</span>
+        {{- if .unread}}<span class="list-end"><b class="count">{{.unread}}</b></span>{{end}}
+    </a>
+    {{- end}}{{end}}
+</div>
+{{- else if not $new}}
+{{template "empty-state" (dict "icon" "message" "t" "Здесь будут ваши разговоры" "s" "Переписка открывается, когда симпатия взаимна." "href" "/encounters" "a" "Начать знакомиться")}}
+{{- end}}

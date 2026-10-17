@@ -1,39 +1,82 @@
+{{- /* Настройки в дизайне dating2 (settings.php макета): сгруппированы по смыслу, опасное — внизу и отдельно.
+   Поиск и приватность — одна форма POST /settings, как раньше; удаление — окно с подтверждением словом. */ -}}
 {{.View.SetTitle "Настройки"}}
-<section class="narrow">
-  <header class="page-head"><h1>Настройки</h1></header>
-  <form method="post" action="/settings" class="stack form-card">
-    {{.Csrf}}
-    <h2 class="h3">Кого показывать</h2>
-    <p class="muted small">Фильтры работают строго: если подходящих анкет нет, мы так и скажем, а не покажем «похожих».</p>
-    <label class="field"><span>Показывать</span><select name="seeking">
-      <option value="f" {{if eq .me.Seeking "f"}}selected{{end}}>Женщин</option>
-      <option value="m" {{if eq .me.Seeking "m"}}selected{{end}}>Мужчин</option>
-      <option value="any" {{if eq .me.Seeking "any"}}selected{{end}}>Всех</option></select></label>
-    <div class="cols">
-      <label class="field"><span>Возраст от</span><input type="number" name="age_min" min="18" max="99" value="{{.me.AgeMin}}"></label>
-      <label class="field"><span>до</span><input type="number" name="age_max" min="18" max="99" value="{{.me.AgeMax}}"></label>
-    </div>
-    <label class="field"><span>Радиус: <output data-range-out>{{.me.MaxKm}}</output> км</span><input type="range" name="max_km" min="1" max="300" value="{{.me.MaxKm}}" data-range></label>
-    <label class="check"><input type="checkbox" name="verified_only" value="1" {{if .me.VerifiedOnly}}checked{{end}}> <span>Только подтверждённые анкеты</span></label>
-    <h2 class="h3">Приватность</h2>
-    <label class="check"><input type="checkbox" name="invisible" value="1" {{if .me.Invisible}}checked{{end}} {{if not .me.IsPremium}}disabled{{end}}>
-      <span>Невидимка — вас видят только те, кого вы лайкнули, и вы не появляетесь в «Гостях» {{if not .me.IsPremium}}<a href="/premium" class="pill pill-premium">Premium</a>{{end}}</span></label>
-    <button class="btn btn-primary" type="submit">Сохранить</button>
-  </form>
+{{- $me := .me}}
+<a class="back" href="/me">{{icon "arrow-left" 18}} Профиль</a>
+<header class="page-head">
+    <div><h1>Настройки</h1><p class="sub">Почта входа: {{$me.Email}}</p></div>
+</header>
 
-  <div class="form-card stack">
-    <h2 class="h3">Аккаунт</h2>
-    <p class="muted small">{{.me.Email}}</p>
-    <form method="post" action="/logout">{{.Csrf}}<button class="btn btn-ghost" type="submit">Выйти</button></form>
-  </div>
+<div class="cols-2">
+    <section class="sec">
+        <div class="sec-h"><div><h2>Кого показывать</h2><p>Фильтры работают строго: нет подходящих — так и скажем, «похожих» не подсунем.</p></div></div>
+        <form method="post" action="/settings" class="form-card stack">{{.Csrf}}
+            <label class="field"><span>Показывать</span><select name="seeking">
+                <option value="f"{{if eq $me.Seeking "f"}} selected{{end}}>Женщин</option>
+                <option value="m"{{if eq $me.Seeking "m"}} selected{{end}}>Мужчин</option>
+                <option value="any"{{if eq $me.Seeking "any"}} selected{{end}}>Всех</option></select></label>
+            <div class="cols">
+                <label class="field"><span>Возраст от</span><input type="number" name="age_min" min="18" max="99" value="{{$me.AgeMin}}"></label>
+                <label class="field"><span>до</span><input type="number" name="age_max" min="18" max="99" value="{{$me.AgeMax}}"></label>
+            </div>
+            <label class="field"><span>Расстояние, км</span>
+                <output class="range-out" data-range-out>{{$me.MaxKm}}</output>
+                <input class="range" type="range" name="max_km" min="1" max="300" value="{{$me.MaxKm}}" data-range aria-label="Расстояние, км">
+                <div class="range-ends"><span>1 км</span><span>300 км</span></div></label>
+            <label class="check"><input type="checkbox" name="verified_only" value="1"{{if $me.VerifiedOnly}} checked{{end}}><span>Только проверенные анкеты</span></label>
+            <label class="check"><input type="checkbox" name="invisible" value="1"{{if $me.Invisible}} checked{{end}}{{if not $me.IsPremium}} disabled{{end}}>
+                <span>Невидимка — вас видят только те, кого вы отметили, и вы не появляетесь в «Гостях»{{if not $me.IsPremium}} <a href="/premium" class="pill pill-premium">Premium</a>{{end}}</span></label>
+            <button class="btn btn-primary" type="submit">Сохранить</button>
+        </form>
+    </section>
 
-  <details class="form-card danger-zone">
-    <summary>Удалить аккаунт</summary>
-    <form method="post" action="/settings/delete" class="stack">
-      {{.Csrf}}
-      <p class="muted small">Удалим анкету, фото, селфи для верификации, симпатии и переписку. Восстановить будет нельзя.</p>
-      <label class="field"><span>Введите УДАЛИТЬ</span><input name="confirm" autocomplete="off" required></label>
-      <button class="btn btn-danger" type="submit">Удалить навсегда</button>
+    <section class="sec">
+        <div class="sec-h"><div><h2>Оформление</h2><p>Выбор сохраняется в этом браузере.</p></div></div>
+        <div class="rows">
+            <div class="row-i">
+                <span class="row-main"><span class="row-t">Тема</span><span class="row-s">Светлая, тёмная или как в системе</span></span>
+                <span class="row-end">{{template "theme-switch"}}</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="sec">
+        <div class="sec-h"><div><h2>Подписка</h2></div></div>
+        <div class="rows">
+            <a class="row-i" href="/premium">
+                <span class="row-main"><span class="row-t">Amura Premium</span><span class="row-s">{{if $me.IsPremium}}Активна до {{$me.PremiumDate}}{{else}}Не оформлена{{end}}</span></span>
+                <span class="row-end">{{icon "chevron-right" 18}}</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="sec">
+        <div class="sec-h"><div><h2>Профиль</h2></div></div>
+        <div class="rows">
+            <form method="post" action="/logout">{{.Csrf}}
+                <button class="row-i" type="submit"><span class="row-main"><span class="row-t">Выйти</span></span><span class="row-end">{{icon "arrow-right" 18}}</span></button></form>
+            <button class="row-i row-danger" type="button" data-open="wipe">
+                <span class="row-main"><span class="row-t">Удалить профиль</span><span class="row-s">Навсегда, вместе с перепиской.</span></span>
+                <span class="row-end">{{icon "ban" 18}}</span>
+            </button>
+        </div>
+    </section>
+</div>
+
+<dialog class="modal" id="wipe" aria-labelledby="h-wipe">
+    <form method="post" action="/settings/delete" class="modal-box">{{.Csrf}}
+        {{template "modal-head" (dict "id" "h-wipe" "t" "Удалить профиль навсегда?")}}
+        <div class="modal-b">
+            <p class="modal-text">Это не скрытие: восстановить не получится.</p>
+            <ol class="dsteps">
+                <li><span>Удалим анкету, фотографии и селфи для проверки</span></li>
+                <li><span>Удалим симпатии и всю переписку — у собеседников она тоже пропадёт</span></li>
+            </ol>
+            <label class="field"><span>Чтобы подтвердить, введите УДАЛИТЬ</span><input name="confirm" autocomplete="off" required></label>
+        </div>
+        <footer class="modal-f">
+            <button class="btn btn-ghost" type="button" data-close>Отмена</button>
+            <button class="btn btn-danger" type="submit">Удалить навсегда</button>
+        </footer>
     </form>
-  </details>
-</section>
+</dialog>

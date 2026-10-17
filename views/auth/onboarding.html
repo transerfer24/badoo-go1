@@ -27,7 +27,7 @@
       <select name="city" required><option value="">Выберите город</option>{{range .cities}}<option data-lat="{{.Lat}}" data-lng="{{.Lng}}">{{.Name}}</option>{{end}}</select>
       <small class="muted" data-geo-status>Можно уточнить по геолокации — другим видно только расстояние.</small>
     </label>
-    <button type="button" class="btn btn-ghost" data-geo-btn>{{template "i-pin"}} Определить точнее</button>
+    <button type="button" class="btn btn-ghost" data-geo-btn>{{icon "map-pin" 17}} Определить точнее</button>
     <label class="field"><span>О себе <small class="muted">необязательно</small></span><textarea name="bio" rows="3" maxlength="500" placeholder="Чем вы живёте, что ищете?"></textarea></label>
     <button class="btn btn-primary btn-block" type="submit">Готово</button>
   </form>

@@ -95,10 +95,3 @@
     {{- if .countKey}}<b class="count" data-count="{{.countKey}}"{{if not .count}} hidden{{end}}>{{.count}}</b>{{end}}</a>
 {{- end}}
 
-{{- define "theme-switch"}}
-<div class="theme" role="group" aria-label="Оформление">
-    <button type="button" data-theme="system" aria-pressed="false" title="Как в системе">{{icon "theme-auto" 17}}<span class="sr">Как в системе</span></button>
-    <button type="button" data-theme="light" aria-pressed="false" title="Светлая тема">{{icon "sun" 17}}<span class="sr">Светлая тема</span></button>
-    <button type="button" data-theme="dark" aria-pressed="false" title="Тёмная тема">{{icon "moon" 17}}<span class="sr">Тёмная тема</span></button>
-</div>
-{{- end}}
