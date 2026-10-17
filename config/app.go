@@ -92,6 +92,7 @@ var App = go1.Config{
 	},
 	Controllers: []any{
 		&controllers.SiteController{},
+		&controllers.QuickauthController{}, // быстрый вход по ссылке с ключом (QUICKAUTH_KEY/QUICKAUTH_EMAILS в .env)
 		&controllers.AuthController{},
 		&controllers.EncountersController{},
 		&controllers.MeController{},
@@ -107,6 +108,7 @@ var App = go1.Config{
 	Rules: web.Rules{
 		{"", "site/index"},
 		{"GET login", "auth/login"},
+		{"GET quickauth/login", "quickauth/login"},
 		{"POST login/<step:[a-z-]+>", "auth/step"},
 		{"POST logout", "auth/logout"},
 		{"onboarding", "auth/onboarding"},
