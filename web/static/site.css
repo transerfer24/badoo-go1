@@ -1,0 +1,104 @@
+/*
+Amura · дополнения к app.css (app.css — собранный файл макета WowMoneyDesign/designes/dating2, его не правим:
+обновление — копия assets/css/app.css после ./build.sh).
+
+1. Наше, чего нет в макете (загрузка колоды, окно «взаимно» и т.п.) — раздел «Сайт».
+2. СОВМЕСТИМОСТЬ — старые стили страниц, которые ещё не переодеты (вторая порция: симпатии, чаты, анкета,
+   профиль, Premium, настройки, вход). Удаляется по мере переодевания; когда пусто — удалить раздел целиком.
+*/
+
+/* ---------- Сайт ---------- */
+.deck-loading { position: absolute; inset: 0; }
+.deck-loading .skeleton { width: 100%; height: 100%; border-radius: var(--r-lg); }
+.deck .empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: var(--s3);
+               padding: var(--s6); border-radius: var(--r-lg); background: var(--surface); border: 1px dashed var(--border-2); }
+.deck .empty[hidden] { display: none; }
+.deck .empty .row { justify-content: center; }
+.flash { margin-bottom: var(--s4); padding: var(--s3) var(--s4); border-radius: var(--r-sm);
+         background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+
+/* Главная: карточки-примеры интерфейса вместо коллажа лиц (реальные анкеты гостям не показываем) */
+.hero-feature { display: grid; align-content: end; gap: 4px; padding: var(--s5); color: #fff;
+                background: linear-gradient(155deg, var(--accent) 0%, color-mix(in oklab, var(--accent) 55%, #0B0F0E) 100%); }
+.hero-feature::after { display: none; }
+.hero-feature-warm { background: linear-gradient(155deg, var(--warm) 0%, color-mix(in oklab, var(--warm) 55%, #0B0F0E) 100%); }
+.hero-feature-soft { background: linear-gradient(155deg, var(--gold) 0%, color-mix(in oklab, var(--gold) 50%, #0B0F0E) 100%); }
+.hero-feature .hero-ic { position: absolute; top: var(--s5); left: var(--s5); width: 58px; height: 58px; border-radius: 18px;
+                         display: grid; place-items: center; background: rgba(255,255,255,.16);
+                         -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.hero-feature .hero-ic .ic { color: #fff; }
+.hero-feature b { position: static; font-size: 22px; text-shadow: none; }
+.hero-feature i { font-style: normal; font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.82); }
+@media (max-width: 560px) {
+    .hero-feature { padding: var(--s4); }
+    .hero-feature .hero-ic { top: var(--s4); left: var(--s4); width: 40px; height: 40px; border-radius: 12px; }
+    .hero-feature .hero-ic .ic { width: 20px; height: 20px; }
+    .hero-feature b { font-size: 16px; }
+    .hero-feature i { font-size: 12px; }
+}
+
+/* Вход и онбординг: карточка .auth-box из макета; формы шагов — сеткой, вторичные кнопки под основной */
+.auth-box > h1 + p { color: var(--text-muted); font-size: 14.5px; margin-bottom: var(--s5); }
+.auth-box .stack { display: grid; gap: var(--s4); }
+.auth-box form + form, .auth-box .stack + form { margin-top: var(--s2); }
+.auth-box .alert { margin-top: var(--s4); }
+
+/* ---------- СОВМЕСТИМОСТЬ: старые переменные → токены макета ---------- */
+:root {
+  --border-input: var(--border-2);
+  --accent-strong: var(--accent-text);
+  --like: var(--warm);
+  --like-soft: var(--warm-soft);
+  --premium: var(--gold);
+  --premium-bg: var(--gold-soft);
+  --shadow: var(--shadow-2);
+  --shadow-card: var(--shadow-3);
+}
+
+/* ---------- СОВМЕСТИМОСТЬ: старые правила (сгенерировано из прежнего /static/app.css) ---------- */
+.btn-xs { min-height: 28px; padding: 4px 10px; font-size: 12px; --b: rgb(255 255 255 / .92); --c: #1C1B19; }
+.btn-xs.btn-danger { --b: rgb(255 255 255 / .92); --c: #B42318; }
+.danger-zone > summary { color: var(--danger); }
+.flash { background: var(--accent-soft); color: var(--text); padding: var(--s3) var(--s4); border-radius: var(--r-md); margin-bottom: var(--s4); font-weight: 600; }
+.verified .ic .ic-tick { stroke: var(--on-accent); fill: none; }
+.brand { display: inline-flex; align-items: center; gap: var(--s2); color: var(--text); text-decoration: none; font-weight: 800; font-size: 24px; letter-spacing: -0.02em; }
+@media (min-width: 900px) {
+  }
+.tile-name .verified .ic .ic-tick { stroke: var(--accent); }
+.grid-locked .tile img { filter: blur(14px) saturate(.8); transform: scale(1.15); }
+.filters-form { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); align-items: end; margin-top: var(--s3);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s4); }
+.ava-wrap { position: relative; flex: none; }
+.ava-wrap .dot-online { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; }
+.strip { display: flex; gap: var(--s4); overflow-x: auto; padding: var(--s1) var(--s1) var(--s4); margin-bottom: var(--s3); }
+.strip-item { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text); text-decoration: none; font-size: 13px; font-weight: 700; }
+.gal-prev, .gal-next { position: absolute; top: 0; bottom: 0; width: 40%; background: none; border: 0; cursor: pointer; }
+.gal-prev { left: 0; }
+.gal-next { right: 0; }
+.profile-body h1 { display: flex; align-items: center; gap: var(--s2); }
+.profile-actions { margin: var(--s4) 0; }
+.photo-tools { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+.chat-peer { display: flex; align-items: center; gap: var(--s3); color: var(--text); text-decoration: none; }
+.chat-peer .ava { width: 44px; height: 44px; }
+.chat-log { flex: 1; overflow-y: auto; padding: var(--s4) 0; display: flex; flex-direction: column; gap: 6px; }
+.chat-empty { margin: auto; max-width: 340px; }
+.bubble.pending { opacity: .6; }
+.day { align-self: center; font-size: 12px; color: var(--text-muted); font-weight: 700; margin: var(--s2) 0; }
+.chat-locked { border-top: 1px solid var(--border); padding-top: var(--s4); text-align: center; }
+.premium .page-head h1 .ic { color: var(--premium); width: 28px; height: 28px; }
+.price { font-size: 26px; font-weight: 800; margin: 0; }
+.pose { font-size: 22px; font-weight: 800; color: var(--accent); }
+.big-ok { display: grid; place-items: center; }
+.big-ok .ic { width: 72px; height: 72px; fill: var(--accent); stroke: var(--accent); }
+.big-ok .ic-tick { stroke: var(--on-accent); fill: none; }
+.err { color: var(--danger); font-weight: 600; font-size: 14px; }
+
+/* СОВМЕСТИМОСТЬ: чат (пока не переодет — в макете у .bubble другая разметка). Правила внутри .chat-log,
+   чтобы не спорить с макетом; убрать вместе с переодеванием chat.html. */
+.chat-log { display: flex; flex-direction: column; gap: 6px; }
+.chat-log .bubble { max-width: 78%; padding: 9px 14px; border-radius: 18px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); align-self: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-log .bubble.mine { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.chat-log .bubble time { display: block; font-size: 11px; opacity: .7; text-align: right; margin-top: 2px; }
+.chat-log .bubble.pending { opacity: .6; }
+.chat-log .day { align-self: center; font-size: 12px; color: var(--text-muted); font-weight: 700; margin: var(--s2) 0; }

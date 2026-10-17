@@ -1,45 +1,104 @@
 {{- /*
-Лейаут Amura (перенос backend/templates/layout.html). Что изменилось:
-  .Me / .Counts из Page → {{$me := me .Ctx}} и {{$counts := counts .Ctx}} — функции шаблона, один раз на запрос;
-  .Active → $active из c.View.Params["active"]; .CSRF meta → {{.CsrfMeta}} (app.js читает meta[name=csrf-token]);
-  .Flash строкой → .Flash (map) из сессии; {{block "content"}} → {{.Content}}; .Dev → eq .App.Env "dev".
+Лейаут Amura в дизайне dating2 (WowMoneyDesign/designes/dating2: partials/head.php, nav.php, theme.php, foot.php).
+
+Две оболочки:
+  - кабинет ($app — вошёл и прошёл онбординг): боковое меню .nav (на узком экране само уезжает вниз) + .main;
+  - гостевая (до входа, вход, онбординг, ошибки): узкая шапка .top + main.
+
+Тема: три положения («как в системе» / светлая / тёмная), выбор в localStorage («amura-theme»). Атрибут data-theme
+ставится скриптом в <head> до первой отрисовки — иначе тёмная тема успевает мигнуть белым; скрипт с nonce (CSP).
+Стили: /static/app.css — собранный файл макета (не править), /static/site.css — наши дополнения и временная
+совместимость для ещё не переодетых страниц.
 */ -}}
 {{- $me := me .Ctx -}}
 {{- $counts := counts .Ctx -}}
 {{- $active := index .View.Params "active" -}}
+{{- $app := and $me $me.Onboarded -}}
 <!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{if .View.Title}}{{.View.Title}} · {{end}}Amura</title>
+<meta name="description" content="Amura — знакомства с проверенными анкетами рядом с вами.">
 <meta name="theme-color" content="#0E7C74">
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/app.css">
+<script nonce="{{.Nonce}}">(function(){try{var m=localStorage.getItem('amura-theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}})();</script>
+<link rel="stylesheet" href="{{asset "/static/app.css"}}">
+<link rel="stylesheet" href="{{asset "/static/site.css"}}">
 {{.CsrfMeta}}
 </head>
-<body class="{{if $me}}{{if $me.Onboarded}}has-nav{{end}}{{end}}">
-{{if $me}}{{if $me.Onboarded}}
+<body{{if not $app}} class="guest"{{end}}>
+<a class="skip" href="#main">К содержимому</a>
+{{- if $app}}
+<div class="shell">
 <nav class="nav" aria-label="Основное меню">
-  <a class="nav-logo" href="/encounters"><img src="/static/logo.svg" alt="" width="28" height="28"><span>amura</span></a>
-  <a href="/encounters" class="{{if eq $active "encounters"}}on{{end}}" {{if eq $active "encounters"}}aria-current="page"{{end}}>{{template "i-cards"}}<span>Встречи</span></a>
-  <a href="/nearby" class="{{if eq $active "nearby"}}on{{end}}" {{if eq $active "nearby"}}aria-current="page"{{end}}>{{template "i-pin"}}<span>Рядом</span></a>
-  <a href="/likes" class="{{if eq $active "likes"}}on{{end}}" {{if eq $active "likes"}}aria-current="page"{{end}}>{{template "i-heart"}}<span>Симпатии</span>{{if $counts.Likes}}<b class="count" data-count="likes">{{$counts.Likes}}</b>{{else}}<b class="count" data-count="likes" hidden></b>{{end}}</a>
-  <a href="/messages" class="{{if eq $active "messages"}}on{{end}}" {{if eq $active "messages"}}aria-current="page"{{end}}>{{template "i-chat"}}<span>Чаты</span>{{if $counts.Unread}}<b class="count" data-count="unread">{{$counts.Unread}}</b>{{else}}<b class="count" data-count="unread" hidden></b>{{end}}</a>
-  <a href="/me" class="{{if eq $active "me"}}on{{end}}" {{if eq $active "me"}}aria-current="page"{{end}}>
-    <img class="nav-avatar" src="{{$me.Avatar}}" alt=""><span>Профиль</span></a>
-  {{if not $me.IsPremium}}<a class="nav-premium" href="/premium">{{template "i-crown"}}<span>Premium</span></a>{{end}}
+    <a class="nav-logo" href="/encounters"><span class="mark">{{icon "logo" 19}}</span><b>Amura</b></a>
+
+    <div class="nav-links">
+        {{template "nav-item" (dict "href" "/encounters" "key" "encounters" "icon" "compass" "label" "Встречи" "active" $active)}}
+        {{template "nav-item" (dict "href" "/nearby" "key" "nearby" "icon" "map-pin" "label" "Рядом" "active" $active)}}
+        {{template "nav-item" (dict "href" "/likes" "key" "likes" "icon" "heart" "label" "Симпатии" "active" $active "count" $counts.Likes "countKey" "likes")}}
+        {{template "nav-item" (dict "href" "/messages" "key" "messages" "icon" "message" "label" "Сообщения" "active" $active "count" $counts.Unread "countKey" "unread")}}
+        {{template "nav-item" (dict "href" "/me" "key" "me" "icon" "user" "label" "Профиль" "active" $active)}}
+    </div>
+
+    <div class="nav-foot">
+        {{- if not $me.IsPremium}}
+        <a class="nav-premium" href="/premium">{{icon "crown" 18}}
+            <span><b>Amura Premium</b>{{if $counts.Likes}}<i>{{$counts.Likes}} {{plural $counts.Likes "симпатия ждёт" "симпатии ждут" "симпатий ждут"}} ответа</i>{{else}}<i>Все симпатии и возврат анкет</i>{{end}}</span>
+        </a>
+        {{- end}}
+        {{template "theme-switch"}}
+        <a class="nav-avatar{{if eq $active "me"}} on{{end}}" href="/me">
+            <span class="ava ava-sm ava-on"><img src="{{$me.Avatar}}" alt=""></span>
+            <span><b>{{$me.Name}}</b><i>Профиль на {{$me.Filled}}%</i></span>
+            {{icon "settings" 17}}
+        </a>
+    </div>
 </nav>
-{{end}}{{end}}
 <main class="main" id="main">
-  {{range $k, $v := .Flash}}<div class="flash" role="status">{{$v}}</div>{{end}}
-  {{.Content}}
+    {{range $k, $v := .Flash}}<div class="flash" role="status">{{$v}}</div>{{end}}
+    {{.Content}}
 </main>
+</div>
+{{- else}}
+<header class="top">
+    <a class="nav-logo" href="/"><span class="mark">{{icon "logo" 19}}</span><b>Amura</b></a>
+    <nav class="top-links" aria-label="Разделы">
+        <a href="/#how">Как это работает</a>
+        <a href="/#safe">Безопасность</a>
+    </nav>
+    <div class="top-end">
+        {{template "theme-switch"}}
+        {{- if $me}}
+        <form method="post" action="/logout">{{.Csrf}}<button class="btn btn-ghost btn-sm" type="submit">Выйти</button></form>
+        {{- else}}
+        <a class="btn btn-ghost btn-sm" href="/login">Войти</a>
+        <a class="btn btn-primary btn-sm" href="/login">Создать профиль</a>
+        {{- end}}
+    </div>
+</header>
+<main id="main">
+    {{range $k, $v := .Flash}}<div class="flash" role="status">{{$v}}</div>{{end}}
+    {{.Content}}
+</main>
+{{- end}}
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<script src="/static/app.js" defer></script>
+<script src="{{asset "/static/app.js"}}" defer></script>
 {{block "scripts" .}}{{end}}
 </body>
 </html>
+
+{{- define "nav-item"}}
+<a href="{{.href}}"{{if eq .active .key}} class="on" aria-current="page"{{end}}>{{icon .icon 20}}<span>{{.label}}</span>
+    {{- if .countKey}}<b class="count" data-count="{{.countKey}}"{{if not .count}} hidden{{end}}>{{.count}}</b>{{end}}</a>
+{{- end}}
+
+{{- define "theme-switch"}}
+<div class="theme" role="group" aria-label="Оформление">
+    <button type="button" data-theme="system" aria-pressed="false" title="Как в системе">{{icon "theme-auto" 17}}<span class="sr">Как в системе</span></button>
+    <button type="button" data-theme="light" aria-pressed="false" title="Светлая тема">{{icon "sun" 17}}<span class="sr">Светлая тема</span></button>
+    <button type="button" data-theme="dark" aria-pressed="false" title="Тёмная тема">{{icon "moon" 17}}<span class="sr">Тёмная тема</span></button>
+</div>
+{{- end}}

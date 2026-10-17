@@ -1,6 +1,6 @@
 {{.View.SetTitle "Вход"}}
-<section class="auth">
-  <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span>amura</span></a>
+<div class="auth">
+<div class="auth-box">
 
   {{if eq .step "email"}}
   <h1>Вход и регистрация</h1>
@@ -62,4 +62,5 @@
   {{with index .errors "message"}}<p class="alert" role="alert">{{.}}</p>{{end}}
   {{with index .errors "ticket"}}<p class="alert" role="alert">{{.}}</p>{{end}}
   {{if ne .step "email"}}<form method="post" action="/login/restart">{{.Csrf}}<button class="btn btn-ghost btn-block btn-sm" type="submit">Другая почта</button></form>{{end}}
-</section>
+</div>
+</div>

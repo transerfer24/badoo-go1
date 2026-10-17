@@ -1,25 +1,88 @@
-{{.View.SetTitle "Amura — знакомства рядом"}}
-<section class="landing">
-  <header class="landing-top">
-    <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span>amura</span></a>
-    <a class="btn btn-ghost" href="/login">Войти</a>
-  </header>
-  <div class="landing-hero">
-    <div class="landing-copy">
-      <p class="eyebrow">Знакомства без фейков</p>
-      <h1>Настоящие люди рядом.<br>Проверенные по селфи.</h1>
-      <p class="lead">Писать в Amura могут только подтверждённые анкеты. Ваши фильтры работают так, как вы их выставили, — мы не подсовываем «похожих». А Premium отменяется одной кнопкой.</p>
-      <div class="landing-cta">
-        <a class="btn btn-primary btn-lg" href="/login">Создать анкету</a>
-        <a class="btn btn-ghost btn-lg" href="/login">У меня уже есть аккаунт</a>
-      </div>
-      {{if .count}}<p class="muted small">Сейчас в базе {{.count}} анкет.</p>{{end}}
-    </div>
-    <ol class="landing-steps">
-      <li><b>1</b><span><strong>Анкета за минуту</strong> Имя, возраст, город и пара фото.</span></li>
-      <li><b>2</b><span><strong>Селфи с жестом</strong> Подтверждаем, что на фото вы.</span></li>
-      <li><b>3</b><span><strong>Взаимная симпатия</strong> Свайпайте или смотрите, кто рядом, — чат откроется, когда понравитесь друг другу.</span></li>
-    </ol>
-  </div>
-  <footer class="landing-foot muted small">Только для тех, кому 18+. © Amura</footer>
-</section>
+{{- /* Главная до входа в дизайне dating2 (index.php макета). Структура макета, тексты — только про то, что продукт
+   правда делает. Вместо коллажа лиц — примеры интерфейса: реальные анкеты на открытой странице не показываем. */ -}}
+{{.View.SetTitle "Знакомства рядом"}}
+<div class="landing">
+
+    <section class="hero">
+        <div>
+            <p class="eyebrow">Знакомства в Испании на русском</p>
+            <h1>Настоящие люди рядом.<br><em>Проверенные по селфи.</em></h1>
+            <p class="lead">
+                Смотрите анкеты по одной или всех, кто рядом. Фильтры работают ровно так, как вы их выставили, —
+                мы не подсовываем «похожих». Переписка открывается, когда симпатия взаимна.
+            </p>
+            <div class="landing-cta">
+                <a class="btn btn-primary btn-lg" href="/login">Создать профиль</a>
+                <a class="btn btn-ghost btn-lg" href="/login">У меня уже есть профиль</a>
+            </div>
+            <p class="landing-note">Бесплатно и только для тех, кому 18+. Анкету можно скрыть или удалить в настройках.</p>
+        </div>
+
+        <div class="hero-art" aria-hidden="true">
+            <figure class="hero-card hero-c1 hero-feature">
+                <span class="hero-ic">{{icon "shield" 34}}</span>
+                <b>Фото проверено</b>
+                <i>селфи с жестом по образцу</i>
+            </figure>
+            <figure class="hero-card hero-c2 hero-feature hero-feature-warm">
+                <span class="hero-ic">{{icon "heart-filled" 30}}</span>
+                <b>Это взаимно!</b>
+                <i>теперь можно написать</i>
+            </figure>
+            <figure class="hero-card hero-c3 hero-feature hero-feature-soft">
+                <span class="hero-ic">{{icon "map-pin" 28}}</span>
+                <b>1,2 км от вас</b>
+                <i>«Рядом» — все, кто близко</i>
+            </figure>
+        </div>
+    </section>
+
+    {{- if .count}}
+    <section class="stats" aria-label="Amura в цифрах">
+        <div class="stat"><b>{{num .count}}</b><span>{{plural .count "анкета" "анкеты" "анкет"}} в Amura</span></div>
+        {{- if .verified}}
+        <div class="stat"><b>{{num .verified}}</b><span>прошли проверку селфи</span></div>
+        {{- end}}
+        <div class="stat"><b>{{.cities}}</b><span>{{plural .cities "город" "города" "городов"}} Испании</span></div>
+    </section>
+    {{- end}}
+
+    <section id="how">
+        <div class="steps">
+            <article class="step">
+                <div class="step-n">1</div>
+                <b>Анкета за минуту</b>
+                <p>Имя, возраст, город и пара фотографий. Остальное можно дописать потом.</p>
+            </article>
+            <article class="step">
+                <div class="step-n">2</div>
+                <b>Селфи с жестом</b>
+                <p>Повторяете жест с картинки — и рядом с именем появляется галочка: на фото действительно вы.</p>
+            </article>
+            <article class="step">
+                <div class="step-n">3</div>
+                <b>Взаимная симпатия</b>
+                <p>Отмечайте анкеты в подборке или смотрите, кто рядом. Совпало — открывается переписка.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="promise" id="safe">
+        <h2>Что мы обещаем — и чего не делаем</h2>
+        <ul>
+            <li>{{icon "shield" 20}}<span><b>Фотографии проверяем</b>Галочка значит, что человек прислал селфи с жестом по образцу. Не красота — подлинность.</span></li>
+            <li>{{icon "lock" 20}}<span><b>Пишут только после взаимности</b>Сообщение может прийти лишь от того, кого вы тоже отметили.</span></li>
+            <li>{{icon "ban" 20}}<span><b>Блокировка в одно нажатие</b>Любую анкету можно скрыть для себя и пожаловаться на неё — модерация разберётся.</span></li>
+            <li>{{icon "sliders" 20}}<span><b>Фильтры не расширяем сами</b>Возраст и расстояние — ваши. Закончились анкеты — так и скажем.</span></li>
+            <li>{{icon "crown" 20}}<span><b>Premium отменяется кнопкой</b>Без писем в поддержку и скрытых продлений.</span></li>
+        </ul>
+    </section>
+
+    <footer class="landing-foot">
+        <span>© Amura · 18+</span>
+        <nav class="row" aria-label="Вход">
+            <a href="/login">Войти</a>
+            <a href="/login">Создать профиль</a>
+        </nav>
+    </footer>
+</div>

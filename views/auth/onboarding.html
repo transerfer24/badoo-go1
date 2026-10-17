@@ -1,6 +1,6 @@
 {{.View.SetTitle "Расскажите о себе"}}
-<section class="auth auth-wide">
-  <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span>amura</span></a>
+<div class="auth">
+<div class="auth-box auth-wide">
   <h1>Расскажите о себе</h1>
   <p class="muted">Это увидят другие. Всё можно поменять позже.</p>
   {{if .error}}<p class="alert" role="alert">{{.error}}</p>{{end}}
@@ -31,4 +31,5 @@
     <label class="field"><span>О себе <small class="muted">необязательно</small></span><textarea name="bio" rows="3" maxlength="500" placeholder="Чем вы живёте, что ищете?"></textarea></label>
     <button class="btn btn-primary btn-block" type="submit">Готово</button>
   </form>
-</section>
+</div>
+</div>

@@ -103,7 +103,51 @@ func AgeAt(b, now time.Time) int {
 	return age
 }
 
-func (u *User) IsPremium() bool  { return !u.PremiumUntil.IsZero() && u.PremiumUntil.After(time.Now()) }
+func (u *User) IsPremium() bool { return !u.PremiumUntil.IsZero() && u.PremiumUntil.After(time.Now()) }
+
+// Filled — заполненность анкеты в процентах (блок «Ваш профиль» на сайте). Считается только по тому, что
+// анкета реально хранит: фото, о себе, интересы, рост, цель, проверка селфи.
+func (u *User) Filled() int {
+	n := 0
+	switch {
+	case len(u.Photos) >= 3:
+		n += 35
+	case len(u.Photos) > 0:
+		n += 20
+	}
+	if strings.TrimSpace(u.Bio) != "" {
+		n += 15
+	}
+	if len(SplitList(u.Interests)) >= 3 {
+		n += 15
+	}
+	if u.Height > 0 {
+		n += 5
+	}
+	if u.Intent != "" {
+		n += 10
+	}
+	if u.IsVerified() {
+		n += 20
+	}
+	return n
+}
+
+// FillHint — что добавить первым, чтобы анкета стала полнее ("" — всё заполнено).
+func (u *User) FillHint() string {
+	switch {
+	case len(u.Photos) < 3:
+		return "Добавьте ещё фотографий — с тремя и больше анкету открывают заметно чаще."
+	case !u.IsVerified():
+		return "Пройдите проверку селфи — рядом с именем появится галочка."
+	case strings.TrimSpace(u.Bio) == "":
+		return "Напишите пару фраз о себе — с ними проще начать разговор."
+	case len(SplitList(u.Interests)) < 3:
+		return "Отметьте хотя бы три интереса — по ним находят общее."
+	}
+	return ""
+}
+
 func (u *User) IsVerified() bool { return u.Verified == 2 }
 
 func (u *User) PremiumDate() string {

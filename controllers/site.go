@@ -23,9 +23,10 @@ func (c *SiteController) ActionIndex() error {
 	if !c.User.IsGuest {
 		return c.Redirect("/encounters")
 	}
-	count := app.Db.CreateCommand("SELECT COUNT(*) FROM {{users}} WHERE onboarded = 1").MustInt()
-
-	return c.Render("landing", web.M{"count": count})
+	// цифры для главной — только настоящие: анкеты, прошедшие проверку селфи, города из справочника
+	st := app.Db.CreateCommand(`SELECT COUNT(*) AS n, COALESCE(SUM(verified = 2), 0) AS verified
+		FROM {{users}} WHERE onboarded = 1 AND banned = 0`).MustRow()
+	return c.Render("landing", web.M{"count": st.Int("n"), "verified": st.Int("verified"), "cities": len(users.Cities)})
 }
 
 // GET /avatar/<id>.svg — сгенерированный аватар для анкет без фото (перенос handleAvatar из images.go).

@@ -28,6 +28,32 @@
   }
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // ---------- Тема (как в макете dating2) ----------
+  // Три положения: как в системе → светлая → тёмная. Пока выбор не сделан, data-theme нет и работает @media.
+  // Начальное значение ставит скрипт в <head> лейаута до отрисовки; здесь — кнопки переключателя.
+  const THEME_KEY = "amura-theme", root = document.documentElement;
+  function applyTheme(mode) {
+    if (mode === "light" || mode === "dark") root.setAttribute("data-theme", mode);
+    else root.removeAttribute("data-theme");
+    $$(".theme button").forEach((b) => {
+      const on = b.dataset.theme === mode;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  let themeNow = "system";
+  try { themeNow = localStorage.getItem(THEME_KEY) || "system"; } catch (_) {}
+  applyTheme(themeNow);
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".theme button");
+    if (!b) return;
+    // гасим переходы на кадр: смена темы мгновенная, а не перекрашивание каждого элемента по очереди
+    root.classList.add("no-anim");
+    applyTheme(b.dataset.theme);
+    try { localStorage.setItem(THEME_KEY, b.dataset.theme); } catch (_) {}
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-anim")));
+  });
+
   // ---------- Мелочи ----------
   $$("[data-back]").forEach((a) => a.addEventListener("click", (e) => {
     if (history.length > 1 && document.referrer.startsWith(location.origin)) { e.preventDefault(); history.back(); }
@@ -96,7 +122,8 @@
   async function refreshCounts() {
     try { const c = await api("/api/counts"); setCount("likes", c.Likes); setCount("unread", c.Unread); } catch (_) {}
   }
-  if (csrf && window.EventSource) {
+  // поток событий — только в кабинете (есть меню): гостю /api/events отвечает страницей входа, и EventSource падает
+  if (csrf && window.EventSource && $(".nav")) {
     const es = new EventSource("/api/events");
     for (const ev of Object.keys(handlers)) {
       es.addEventListener(ev, (e) => {
@@ -113,53 +140,64 @@
     }
   }
 
-  // ---------- Встречи ----------
+  // ---------- Встречи (разметка макета dating2: encounters.php) ----------
+  // Сверху колоды — ПОСЛЕДНЯЯ карточка в DOM (.card:nth-last-child в стилях): queue[0] добавляется последней.
+  // Перетаскивание ведёт верхнюю карточку, следующая подтягивается по --drag на колоде; порог — 90px.
   const enc = $("[data-encounters]");
   if (enc) {
     const deck = $(".deck", enc), tpl = $("#card-tpl"), dlg = $("[data-match-dialog]");
-    const loading = $("[data-loading]", enc), empty = $("[data-empty]", enc);
+    const loading = $("[data-loading]", enc), empty = $("[data-empty]", enc), info = $("[data-info]", enc);
+    const THRESHOLD = 90;
     let queue = [], busy = false, fetching = false, exhausted = false;
     const seen = new Set();
+
+    function showShot(el, i) {
+      const imgs = $$("[data-shots] img", el), bars = $$(".card-bars button", el);
+      if (!imgs.length) return;
+      i = Math.max(0, Math.min(i, imgs.length - 1));
+      imgs.forEach((im, k) => (im.hidden = k !== i));
+      bars.forEach((b, k) => b.classList.toggle("on", k === i));
+      el.dataset.shot = i;
+    }
 
     function build(c) {
       const el = tpl.content.firstElementChild.cloneNode(true);
       el.dataset.id = c.id;
-      const ph = $(".card-photos", el), bars = $(".card-bars", el);
-      c.photos.forEach((src, k) => {
+      const ph = $("[data-shots]", el), bars = $(".card-bars", el);
+      const shots = c.photos.length ? c.photos : ["/avatar/" + c.id + ".svg"];
+      shots.forEach((src, k) => {
         const im = new Image(); im.src = src; im.alt = `${c.name}, фото ${k + 1}`; im.draggable = false; im.hidden = k > 0; ph.append(im);
-        if (c.photos.length > 1) { const b = document.createElement("i"); if (!k) b.className = "on"; bars.append(b); }
+        if (shots.length > 1) {
+          const b = document.createElement("button");
+          b.type = "button"; b.dataset.shot = k; b.setAttribute("aria-label", `Фото ${k + 1} из ${shots.length}`);
+          if (!k) b.className = "on";
+          bars.append(b);
+        }
       });
       $(".card-name", el).textContent = `${c.name}, ${c.age}`;
-      $(".card-verified", el).hidden = !c.verified;
-      $(".card-meta", el).textContent = [c.online ? "● онлайн" : "", c.city, c.dist, c.height ? c.height + " см" : ""].filter(Boolean).join(" · ");
-      $(".card-bio", el).textContent = c.bio || c.intent || "";
-      const chips = $(".card-chips", el);
-      c.interests.slice(0, 4).forEach((t) => { const li = document.createElement("li"); li.textContent = t; chips.append(li); });
-      $(".card-info", el).href = "/u/" + c.id;
-      // тап по левой/правой части фото листает фото
-      let pi = 0;
-      ph.parentElement.addEventListener("click", (e) => {
-        if (e.target.closest(".card-info") || el.dataset.moved === "1" || c.photos.length < 2) return;
-        const r = el.getBoundingClientRect();
-        pi = (pi + (e.clientX - r.left < r.width / 2 ? -1 : 1) + c.photos.length) % c.photos.length;
-        $$("img", ph).forEach((im, k) => (im.hidden = k !== pi));
-        $$("i", bars).forEach((b, k) => b.classList.toggle("on", k === pi));
-      });
-      drag(el);
+      $("[data-online]", el).hidden = !c.online;
+      $("[data-verified]", el).hidden = !c.verified;
+      $("[data-meta]", el).textContent = [c.dist || c.city, c.dist ? c.city : "", c.height ? c.height + " см" : "", c.intentLabel ? "ищет: " + c.intentLabel.toLowerCase() : ""].filter(Boolean).join(" · ");
+      $(".card-bio", el).textContent = c.bio || "";
+      const chips = $(".chips", el);
+      c.interests.slice(0, 3).forEach((t) => { const li = document.createElement("li"); li.className = "pill"; li.textContent = t; chips.append(li); });
+      $("[data-open]", el).href = "/u/" + c.id;
       return el;
     }
 
     function render() {
       const visible = queue.slice(0, 3);
-      $$(".card", deck).forEach((c) => { if (!visible.some((q) => q.el === c)) c.remove(); });
-      // верхняя карточка (queue[0]) — последняя в DOM
-      visible.slice().reverse().forEach((q) => deck.append(q.el));
-      visible.forEach((q, i) => q.el.classList.toggle("top", i === 0));
+      $$(".card", deck).forEach((c) => { if (!c.classList.contains("gone") && !visible.some((q) => q.el === c)) c.remove(); });
+      visible.slice().reverse().forEach((q) => deck.append(q.el));   // верхняя (queue[0]) — последней
+      visible.forEach((q, i) => {
+        if (i === 0) { q.el.removeAttribute("inert"); q.el.removeAttribute("aria-hidden"); }
+        else { q.el.setAttribute("inert", ""); q.el.setAttribute("aria-hidden", "true"); }
+      });
       loading.hidden = true;
       const none = queue.length === 0 && exhausted;
       empty.hidden = !none;
-      deck.style.aspectRatio = none ? "auto" : "";
-      $(".deck-actions", enc).hidden = none;
+      $("[data-actions]", enc).hidden = none;
+      if (queue[0]) info.href = "/u/" + queue[0].c.id;
       if (queue.length < 4 && !exhausted) load();
     }
 
@@ -185,10 +223,14 @@
       if (!top || busy) return;
       busy = true;
       const el = top.el;
-      el.style.transform = `translate(${liked ? 140 : -140}%, 0) rotate(${liked ? 24 : -24}deg)`;
-      el.style.opacity = "0";
+      const stamp = $(liked ? ".stamp-like" : ".stamp-pass", el);
+      stamp.classList.add("show");
+      el.style.transform = "";
+      el.classList.add("gone", liked ? "gone-r" : "gone-l");
+      deck.style.setProperty("--drag", 0);
       queue.shift();
-      setTimeout(() => { el.remove(); el.style.transform = ""; el.style.opacity = ""; render(); busy = false; }, 280);
+      render();
+      setTimeout(() => { el.remove(); busy = false; }, 320);
       try {
         const res = await api("/api/vote", { target: top.c.id, liked });
         if (res.match) showMatch(res);
@@ -199,7 +241,7 @@
       $("[data-match-other]", dlg).src = m.avatar;
       $("[data-match-name]", dlg).textContent = m.name;
       $("[data-match-chat]", dlg).href = "/chat/" + m.matchId;
-      dlg.showModal();
+      if (!dlg.open) dlg.showModal();
     }
     $("[data-match-close]", dlg).addEventListener("click", () => dlg.close());
     handlers.match.push((m) => { showMatch(m); return true; });
@@ -218,34 +260,61 @@
       } catch (_) { toast("Не получилось вернуть анкету."); }
     }
 
-    function drag(el) {
-      let x0 = 0, y0 = 0, dx = 0, active = false;
-      const like = $(".stamp-like", el), pass = $(".stamp-pass", el);
-      el.addEventListener("pointerdown", (e) => {
-        if (!el.classList.contains("top") || e.button !== 0) return;
-        active = true; x0 = e.clientX; y0 = e.clientY; dx = 0; el.dataset.moved = "0";
-        el.setPointerCapture(e.pointerId); el.classList.add("dragging");
-      });
-      el.addEventListener("pointermove", (e) => {
-        if (!active) return;
-        dx = e.clientX - x0;
-        const dy = e.clientY - y0;
-        if (Math.abs(dx) > 6) el.dataset.moved = "1";
-        el.style.transform = `translate(${dx}px, ${dy * 0.2}px) rotate(${dx / 18}deg)`;
-        like.style.opacity = Math.max(0, Math.min(1, dx / 100));
-        pass.style.opacity = Math.max(0, Math.min(1, -dx / 100));
-      });
-      const end = () => {
-        if (!active) return;
-        active = false; el.classList.remove("dragging");
-        like.style.opacity = pass.style.opacity = 0;
-        if (Math.abs(dx) > 110) decide(dx > 0);
-        else el.style.transform = "";
-        setTimeout(() => (el.dataset.moved = "0"), 50);
-      };
-      el.addEventListener("pointerup", end);
-      el.addEventListener("pointercancel", end);
+    // полоски фото — настоящие кнопки
+    deck.addEventListener("click", (e) => {
+      const b = e.target.closest(".card-bars button");
+      if (b) showShot(b.closest(".card"), +b.dataset.shot);
+    });
+
+    // ---- перетаскивание верхней карточки (на колоде, как в макете) ----
+    let held = null, x0 = 0, y0 = 0, dx = 0;
+    deck.addEventListener("dragstart", (e) => e.preventDefault());
+    function stamps(el, kind, o) {
+      $$(".stamp-like, .stamp-pass", el).forEach((n) => (n.style.opacity = ""));
+      if (kind) $(kind === "like" ? ".stamp-like" : ".stamp-pass", el).style.opacity = o;
     }
+    deck.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button, a") || (e.button !== undefined && e.button !== 0) || busy) return;
+      held = queue[0] ? queue[0].el : null;
+      if (!held || !held.contains(e.target)) { held = null; return; }
+      e.preventDefault();
+      x0 = e.clientX; y0 = e.clientY; dx = 0;
+      held.style.transition = "none";
+      deck.classList.add("deck-drag");
+      deck.setPointerCapture?.(e.pointerId);
+    });
+    deck.addEventListener("pointermove", (e) => {
+      if (!held) return;
+      dx = e.clientX - x0;
+      const dy = (e.clientY - y0) * 0.25;
+      held.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 24}deg)`;
+      const o = Math.min(Math.abs(dx) / THRESHOLD, 1);
+      stamps(held, Math.abs(dx) > 12 ? (dx > 0 ? "like" : "pass") : null, o);
+      deck.style.setProperty("--drag", o.toFixed(3));   // следующая подтягивается по мере ухода верхней
+    });
+    function drop(e) {
+      if (!held) return;
+      const el = held; held = null;
+      deck.classList.remove("deck-drag");
+      try { e && e.pointerId !== undefined && deck.releasePointerCapture(e.pointerId); } catch (_) {}
+      el.style.transition = "";
+      stamps(el, null, 0);
+      if (Math.abs(dx) > THRESHOLD) { decide(dx > 0); }
+      else {
+        el.style.transform = "";               // пружиной обратно
+        deck.style.setProperty("--drag", 0);
+        // касание без ведения — следующее/предыдущее фото, а не промахнувшаяся симпатия
+        if (Math.abs(dx) < 8 && e && e.target && !e.target.closest("button, a")) {
+          const r = el.getBoundingClientRect();
+          showShot(el, (+el.dataset.shot || 0) + (e.clientX < r.left + r.width / 2 ? -1 : 1));
+        }
+      }
+      dx = 0;
+    }
+    deck.addEventListener("pointerup", drop);
+    deck.addEventListener("pointercancel", drop);
+    window.addEventListener("pointerup", drop);
+    window.addEventListener("blur", () => held && drop());
 
     $("[data-like]", enc).addEventListener("click", () => decide(true));
     $("[data-pass]", enc).addEventListener("click", () => decide(false));

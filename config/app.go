@@ -11,6 +11,7 @@ import (
 	"badoo/commands"
 	"badoo/components/auth"
 	"badoo/components/hub"
+	"badoo/components/icons"
 	"badoo/components/push"
 	"badoo/components/users"
 	"badoo/controllers"
@@ -208,6 +209,8 @@ var App = go1.Config{
 		a.Server.Views.AddFunc("me", users.Current)
 		a.Server.Views.AddFunc("counts", users.Counts)
 		a.Server.Views.AddFunc("intentLabels", func() map[string]string { return users.IntentLabels })
+		// Веб-версия в дизайне dating2: {{icon "heart" 20}} — инлайн-SVG из components/icons.
+		a.Server.Views.AddFunc("icon", icons.Icon)
 		// Функции над строками выборок — Functions:: из WealthBook: {{age .birthdate}}, {{avatar .photo .id}}, {{dist .dist_km}}…
 		for name, fn := range users.Funcs {
 			a.Server.Views.AddFunc(name, fn)
