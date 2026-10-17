@@ -18,7 +18,10 @@
 </section>
 
 <section style="min-height: 700px;">
-    <h4 style="margin-bottom:10px;">Записей: <span class="log-count">0</span> <button type="button" class="btn btn--secondary btn--sm export-btn" style="float:right;" title="Выгрузить в CSV (Excel) по текущим фильтрам, до 50 000 строк"><i class="fa fa-download"></i> CSV</button></h4>
+    <div class="am-list-head">
+        <h4>Записей: <span class="log-count">0</span></h4>
+        <div class="am-actions"><button type="button" class="btn btn--secondary btn--sm export-btn" title="Выгрузить в CSV (Excel) по текущим фильтрам, до 50 000 строк"><i class="fa fa-download"></i> CSV</button></div>
+    </div>
     <table class="border--round table--alternate-row">
         <thead><tr><th>Когда</th><th>Админ</th><th>Действие</th><th>Пользователь</th><th>Подробности</th><th>IP</th></tr></thead>
         <tbody id="log_result"></tbody>

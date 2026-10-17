@@ -2,7 +2,7 @@
 
 <section style="padding-top: 16px;">
     <h4 style="margin:0;">За период
-        <select id="period" class="form-control" style="display:inline-block;width:auto;height:30px;padding:2px 6px;font-size:13px;">
+        <select id="period" class="form-control am-inline-select">
             <option value="1h">час</option>
             <option value="24h" selected>сутки</option>
             <option value="7d">7 дней</option>
@@ -19,7 +19,7 @@
     </ul>
 
     <div class="tab__content active" id="tab-visitors">
-        <div style="margin:12px 0;"><label style="font-size:13px;"><input type="checkbox" class="with-banned" value="1"> с заблокированными</label>
+        <div style="margin:12px 0;"><label class="am-check"><input type="checkbox" class="with-banned" value="1"> с заблокированными</label>
             <span class="am-sub" style="margin-left:12px;">Всего: <b class="visitors-count">0</b></span></div>
         <table class="border--round table--alternate-row">
             <thead><tr><th>Кто</th><th class="text-right">Анкет за период</th><th class="text-right">За последний час</th><th class="text-right">Смотрели его</th><th>Последний просмотр</th><th>Регистрация</th></tr></thead>
@@ -29,7 +29,7 @@
     </div>
 
     <div class="tab__content" id="tab-visited" style="display:none;">
-        <div style="margin:12px 0;"><label style="font-size:13px;"><input type="checkbox" class="with-banned" value="1"> с заблокированными</label>
+        <div style="margin:12px 0;"><label class="am-check"><input type="checkbox" class="with-banned" value="1"> с заблокированными</label>
             <span class="am-sub" style="margin-left:12px;">Всего: <b class="visited-count">0</b></span></div>
         <table class="border--round table--alternate-row">
             <thead><tr><th>Чья анкета</th><th class="text-right">Гостей за период</th><th class="text-right">За последний час</th><th class="text-right">Сам смотрел</th><th>Последний гость</th><th>Регистрация</th></tr></thead>
@@ -60,7 +60,7 @@
                     <option value="7d">7 дней</option>
                 </select>
             </div>
-            <div class="form-group" style="min-width:auto;"><label>&nbsp;</label><div style="height:32px;line-height:32px;">Просмотров: <b class="feed-count">0</b></div></div>
+            <div class="form-group am-auto"><label>&nbsp;</label><div class="am-inline">Просмотров: <b class="feed-count">0</b></div></div>
         </form>
         <table class="border--round table--alternate-row">
             <thead><tr><th>Когда</th><th>Кто смотрел</th><th>Чью анкету</th></tr></thead>

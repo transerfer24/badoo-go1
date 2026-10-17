@@ -13,12 +13,35 @@ a.am-banned { text-decoration: line-through; color: #e55353 !important; }
 .am-pill-grey { background: #eef0f3; color: #768192; }
 .am-pill-blue { background: #e7f1ff; color: #2b6cb0; }
 
-.am-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+/*
+Панель фильтров (.am-filters) — правила вёрстки, общие для всех страниц админки (ADMIN.md, «Вёрстка»):
+  - каждое поле — .form-group с подписью <label> и одним контролом; у всех контролов одна высота --am-h;
+  - блок без своего поля (счётчик, флажки, кнопка) — .form-group.am-auto с <label>&nbsp;</label> и .am-inline внутри;
+  - флажок — <label class="am-check"><input type="checkbox"> текст</label>, не инлайн-стили;
+  - прижать блок вправо — .am-push.
+main.css темы задаёт select.form-control свою высоту (height: auto) — здесь она перекрыта, иначе ряд скачет.
+*/
+:root { --am-h: 34px; }
+.am-filters { display: flex; flex-wrap: wrap; gap: 12px 10px; align-items: flex-end; }
 .am-filters .form-group { margin: 0; min-width: 130px; }
-.am-filters label { font-size: 11px; color: #768192; margin-bottom: 2px; display: block; text-transform: uppercase; font-weight: 600; }
-.am-filters .form-control { height: 32px; padding: 4px 8px; font-size: 13px; }
+.am-filters .form-group > label { font-size: 11px; line-height: 14px; color: #768192; margin: 0 0 4px; display: block; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
+.am-filters .form-control,
+.am-filters select.form-control:not([size]):not([multiple]) { height: var(--am-h); padding: 4px 8px; font-size: 13px; line-height: 1.4; }
+.am-filters .btn { height: var(--am-h); padding: 0 14px; line-height: calc(var(--am-h) - 2px); margin: 0; }
 .am-filters .am-wide { min-width: 240px; flex: 1 1 240px; }
 .am-filters .am-narrow { min-width: 70px; width: 80px; }
+.am-filters .am-auto { min-width: auto; }
+.am-filters .am-push { margin-left: auto; }
+.am-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; min-height: var(--am-h); font-size: 13px; }
+label.am-check { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: 400; color: inherit; text-transform: none; white-space: nowrap; cursor: pointer; }
+label.am-check input { margin: 0; }
+/* выпадающий список в строке текста: «За период [7 дней]» */
+.am-inline-select { display: inline-block; width: auto; height: 30px; padding: 2px 6px; font-size: 13px; vertical-align: middle; }
+
+/* шапка списка: заголовок слева, действия (CSV и т.п.) справа — не float, иначе кнопка наезжает на таблицу */
+.am-list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.am-list-head h4 { margin: 0; }
+.am-list-head .am-actions { margin-left: auto; }
 
 .dash-cards { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
 .dash-card { flex: 1 1 200px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 18px; }
