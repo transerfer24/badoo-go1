@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"badoo/components/chat"
@@ -109,6 +110,10 @@ func (c *SocialController) ActionCounts() error {
 }
 
 // SSE: события пользователя в реальном времени для веб-версии (приложение ходит long-poll в API v1).
+//
+// Ядро закрывает запись через WriteTimeout (60 с), поэтому поток сам завершается через 50 с, а браузер (EventSource)
+// переподключается через retry и присылает Last-Event-ID — номер последнего полученного события. Всё, что пришло
+// в паузе, досылается из буфера хаба (hub.Since): события не теряются ни при переподключении, ни после выкладки.
 func (c *SocialController) ActionEvents() error {
 	w := c.Response
 	fl, ok := w.(http.Flusher)
@@ -121,18 +126,39 @@ func (c *SocialController) ActionEvents() error {
 	h.Set("X-Accel-Buffering", "no")
 	w.WriteHeader(200)
 	c.Hijacked(200) // ответ пишем сами, ядро после возврата ничего не дописывает
-	ch := hub.Subscribe(c.User.Id)
-	defer hub.Unsubscribe(c.User.Id, ch)
-	fmt.Fprint(w, ": ok\n\n")
+	uid := c.User.Id
+	ch := hub.Subscribe(uid) // сначала подписка, потом добор пропущенного — чтобы ничего не проскочило между ними
+	defer hub.Unsubscribe(uid, ch)
+
+	last, _ := strconv.ParseInt(c.Request.Header.Get("Last-Event-ID"), 10, 64)
+	write := func(ev hub.Event) {
+		if ev.Seq <= last {
+			return // уже отправляли (добор из буфера и живая подписка могут совпасть)
+		}
+		last = ev.Seq
+		fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", ev.Seq, ev.Type, ev.Data)
+	}
+	fmt.Fprint(w, "retry: 2000\n: ok\n\n")
+	if last > 0 {
+		evs, _ := hub.Since(uid, last)
+		for _, ev := range evs {
+			write(ev)
+		}
+	}
 	fl.Flush()
-	ping := time.NewTicker(25 * time.Second)
+
+	ping := time.NewTicker(20 * time.Second)
 	defer ping.Stop()
+	end := time.NewTimer(50 * time.Second) // раньше WriteTimeout ядра: закрываемся сами, браузер переподключится
+	defer end.Stop()
 	for {
 		select {
 		case <-c.Request.Context().Done():
 			return nil
+		case <-end.C:
+			return nil
 		case ev := <-ch:
-			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, ev.Data)
+			write(ev)
 			fl.Flush()
 		case <-ping.C:
 			fmt.Fprint(w, ": ping\n\n")
