@@ -40,13 +40,21 @@ var App = go1.Config{
 	Language: "ru",
 	// MySQL хостинга (dreampro_wbadoo). Таблицы без префикса — схема та же, что была в SQLite-версии,
 	// чтобы SQL из старого бэкенда переносился как есть: {{users}}, {{votes}}, {{matches}}…
+	// Пул соединений: на shared-MySQL лимит соединений на пользователя небольшой, а web, worker и cron — три процесса
+	// со своими пулами. ConnMaxLifetime меньше wait_timeout хостинга — иначе «invalid connection» на протухшем.
 	Db: db.Config{
-		DSN:         config.Env("DB_DSN"),
-		TablePrefix: "",
+		DSN:             config.Env("DB_DSN"),
+		TablePrefix:     "",
+		MaxOpen:         config.EnvInt("DB_MAX_OPEN", 8),
+		MaxIdle:         config.EnvInt("DB_MAX_IDLE", 4),
+		ConnMaxLifetime: config.EnvDuration("DB_CONN_LIFETIME", 3*time.Minute),
 	},
 	Web: web.Config{
 		Addr:       config.Env("ADDR", ":8080"),
 		TrustProxy: config.Env("TRUST_PROXY") == "1", // хостинг проксирует в приложение, реальный IP в X-Real-IP
+		// не писать в журнал успешные long-poll и SSE (по строке на каждого открытого клиента каждые 25–50 с),
+		// статику, аватары и healthz — ошибки по ним пишутся как обычно
+		AccessLogSkip: []string{"/api/events", "/api/v1/events", "/static/", "/theme/", "/plugins/", "/avatar/", "/healthz", "/readyz"},
 	},
 	// CORS только для API приложения (как corsV1): авторизация заголовком, cookie не участвуют — любой origin безопасен.
 	// Нативному приложению CORS не нужен, это для веб-сборки Expo и отладки из браузера.
