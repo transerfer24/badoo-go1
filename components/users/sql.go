@@ -26,7 +26,7 @@ import (
 )
 
 // Cols — поля анкеты для списков и карточек (u.*, кроме служебных: email, pass_hash, auth_key, настройки фильтров).
-const Cols = `u.id, u.name, u.birthdate, u.gender, u.seeking, u.city, u.lat, u.lng, u.bio, u.intent, u.interests, u.height,
+const Cols = `u.id, u.name, u.birthdate, u.gender, u.seeking, u.city, u.lat, u.lng, u.bio, u.intent, u.interests, u.languages, u.height,
 	u.verified, u.last_seen, u.invisible, u.premium_until, u.onboarded`
 
 // Photo — главное фото (ключ в хранилище; в шаблоне {{avatar .photo .id}}), Photos — все через запятую ({{gallery .photos .id}}).
@@ -91,6 +91,7 @@ var Funcs = map[string]any{
 	"gender":    func(g string) string { return GenderLabels[g] },
 	"intent":    func(k string) string { return IntentLabels[k] },
 	"interests": SplitList,
+	"langs":     ParseLangs,
 }
 
 // AgeOf — полных лет по дате рождения YYYY-MM-DD.

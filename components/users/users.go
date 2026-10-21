@@ -37,6 +37,7 @@ type User struct {
 	Height       int       `db:"height"`
 	Intent       string    `db:"intent"`
 	Interests    string    `db:"interests"`
+	Languages    string    `db:"languages"` // «uk:fluent,en:speak» — ParseLangs
 	Verified     int       `db:"verified"`
 	PremiumUntil time.Time `db:"premium_until"`
 	Invisible    bool      `db:"invisible"`
@@ -300,6 +301,18 @@ func ParseProfileForm(c *web.Context, full bool) (db.H, string) {
 			}
 		}
 		set["interests"] = strings.Join(list, ",")
+		// языки — только из веб-формы /me, где есть окно «Языки» (langs_form=1); приложение шлёт их в PUT /me/languages
+		if c.Post("langs_form") == "1" {
+			pick := []UserLang{}
+			for _, code := range c.PostSlice("lang") {
+				pick = append(pick, UserLang{Code: code, Level: c.Post("lang_level_" + code)})
+			}
+			prev := ""
+			if me := Current(c); me != nil {
+				prev = me.Languages
+			}
+			set["languages"] = NormalizeLangs(pick, prev)
+		}
 	}
 	return set, ""
 }

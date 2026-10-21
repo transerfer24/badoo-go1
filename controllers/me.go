@@ -36,7 +36,22 @@ func (c *MeController) mePage(errMsg string) error {
 	}
 	c.View.Params = web.M{"active": "me"}
 
+	// языки: выбранные — сверху в порядке анкеты, дальше остальные из справочника
+	myLangs := users.ParseLangs(me.Languages)
+	level := map[string]string{}
+	langRows := []users.Lang{}
+	for _, l := range myLangs {
+		level[l.Code] = l.Level
+		langRows = append(langRows, users.Lang{Code: l.Code, Name: l.Name})
+	}
+	for _, l := range users.Languages() {
+		if level[l.Code] == "" {
+			langRows = append(langRows, l)
+		}
+	}
+
 	return c.Render("index", web.M{
+		"myLangs": myLangs, "langRows": langRows, "langLevel": level, "langLevels": users.LangLevels, "maxLangs": users.MaxLangs,
 		"me": me, "error": errMsg, "photos": photos.Mine(c.User.Id), "max_photos": photos.MaxPhotos,
 		"cities": users.Cities, "interests": users.InterestOptions, "mine": mine, "max": users.MaxBirthdate(),
 	})

@@ -50,6 +50,26 @@ func (c *ApiMeController) ActionUpdate() error {
 	return writeMe(c.Context, c.User.Id)
 }
 
+// PUT /api/v1/me/languages {languages: [{code, level}]} → MeDTO. Отдельно от PUT /me: старые сборки приложения
+// языков не знают, и их сохранение анкеты не должно стирать выбор, сделанный на сайте.
+func (c *ApiMeController) ActionLanguages() error {
+	var in struct {
+		Languages []users.UserLang `json:"languages"`
+	}
+	if !apiBind(c.Context, &in) {
+		return nil
+	}
+	me := users.Current(c.Context)
+	if len(in.Languages) > users.MaxLangs {
+		return apiFail(c.Context, 400, "validation", "Не больше 5 языков.")
+	}
+	langs := users.NormalizeLangs(in.Languages, me.Languages)
+	if _, err := app.Db.Update("{{users}}", db.H{"languages": langs}, db.H{"id": c.User.Id}); err != nil {
+		return apiFail(c.Context, 500, "db")
+	}
+	return writeMe(c.Context, c.User.Id)
+}
+
 func (c *ApiMeController) ActionSettings() error {
 	me := users.Current(c.Context)
 	var in struct {

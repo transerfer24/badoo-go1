@@ -70,5 +70,6 @@ func (c *ApiMetaController) ActionIndex() error {
 	return c.Json(web.M{
 		"cities": cities, "interests": users.InterestOptions, "intents": intents, "reportReasons": discovery.ReportReasons,
 		"palettes": users.AvatarPalettes, "maxPhotos": photos.MaxPhotos, "dev": users.DevMode(), "meetupKinds": meetups.Kinds,
+		"languages": users.Languages(), "langLevels": users.LangLevels, "maxLangs": users.MaxLangs,
 	})
 }

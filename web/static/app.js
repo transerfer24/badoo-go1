@@ -64,6 +64,48 @@
     if (e.target.tagName === "DIALOG" && e.target.open) e.target.close();
   });
 
+  // ---------- Языки анкеты (/me, окно #pick-langs; как в макете dating2) ----------
+  // Строка = чекбокс языка + уровень; не больше data-max. «Отмена»/закрытие без сохранения возвращают как было.
+  (() => {
+    const dlg = $("#pick-langs");
+    if (!dlg) return;
+    const box = $("[data-langs]", dlg), max = Number(box.dataset.max) || 5;
+    const count = $("[data-lang-count]", dlg), hint = $("[data-lang-hint]", dlg);
+    const rows = () => $$(".lang", box);
+    let before = null, saving = false;
+    const sync = () => {
+      const n = rows().filter((r) => $("input", r).checked).length;
+      count.textContent = n;
+      hint.hidden = n < max;
+      rows().forEach((r) => {
+        const on = $("input", r).checked;
+        r.classList.toggle("on", on);
+        r.classList.toggle("lang-off", n >= max && !on);
+        $("select", r).disabled = !on;
+      });
+    };
+    box.addEventListener("change", (e) => {
+      const cb = e.target.closest('input[type="checkbox"]');
+      if (!cb) return;
+      if (cb.checked && rows().filter((r) => $("input", r).checked).length > max) {
+        cb.checked = false;
+        toast(`Можно выбрать ${max} языков - снимите один`);
+      }
+      sync();
+    });
+    // снимок при открытии — чтобы «Отмена» вернула как было
+    document.addEventListener("click", (e) => {
+      if (e.target.closest('[data-open="pick-langs"]')) before = rows().map((r) => [$("input", r).checked, $("select", r).value]);
+    }, true);
+    dlg.closest("form")?.addEventListener("submit", () => (saving = true));
+    dlg.addEventListener("close", () => {
+      if (saving || !before) return;
+      rows().forEach((r, i) => { $("input", r).checked = before[i][0]; $("select", r).value = before[i][1]; });
+      sync();
+    });
+    sync();
+  })();
+
   // ---------- Мелочи ----------
   $$("[data-back]").forEach((a) => a.addEventListener("click", (e) => {
     if (history.length > 1 && document.referrer.startsWith(location.origin)) { e.preventDefault(); history.back(); }

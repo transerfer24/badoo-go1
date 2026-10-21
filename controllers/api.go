@@ -97,23 +97,24 @@ type PhotoDTO struct {
 }
 
 type UserDTO struct {
-	Id          int64    `json:"id"`
-	Name        string   `json:"name"`
-	Age         int      `json:"age"`
-	Gender      string   `json:"gender"`
-	City        string   `json:"city"`
-	DistKm      float64  `json:"distKm"`
-	Dist        string   `json:"dist"`
-	Verified    bool     `json:"verified"`
-	Online      bool     `json:"online"`
-	LastSeen    string   `json:"lastSeen"`
-	Photos      []string `json:"photos"`
-	Bio         string   `json:"bio"`
-	Intent      string   `json:"intent"`
-	IntentLabel string   `json:"intentLabel"`
-	Interests   []string `json:"interests"`
-	Height      int      `json:"height"`
-	Color       int      `json:"color"` // индекс палитры для аватара без фото
+	Id          int64            `json:"id"`
+	Name        string           `json:"name"`
+	Age         int              `json:"age"`
+	Gender      string           `json:"gender"`
+	City        string           `json:"city"`
+	DistKm      float64          `json:"distKm"`
+	Dist        string           `json:"dist"`
+	Verified    bool             `json:"verified"`
+	Online      bool             `json:"online"`
+	LastSeen    string           `json:"lastSeen"`
+	Photos      []string         `json:"photos"`
+	Bio         string           `json:"bio"`
+	Intent      string           `json:"intent"`
+	IntentLabel string           `json:"intentLabel"`
+	Interests   []string         `json:"interests"`
+	Languages   []users.UserLang `json:"languages"`
+	Height      int              `json:"height"`
+	Color       int              `json:"color"` // индекс палитры для аватара без фото
 }
 
 // toDTO — строка выборки (users.Cols + photo/photos + dist_km) → JSON приложения. Это array_map перед asJson:
@@ -135,7 +136,7 @@ func toDTO(r db.Row) UserDTO {
 		DistKm: math.Round(r.Float("dist_km")*10) / 10, Dist: users.DistLabelKm(r.Float("dist_km")),
 		Verified: r.Int("verified") == 2, Online: users.OnlineAt(r["last_seen"]), LastSeen: ls, Photos: ph,
 		Bio: r.Str("bio"), Intent: r.Str("intent"), IntentLabel: users.IntentLabels[r.Str("intent")],
-		Interests: users.SplitList(r.Str("interests")), Height: r.Int("height"), Color: users.ColorIndex(r.Int64("id")),
+		Interests: users.SplitList(r.Str("interests")), Languages: users.ParseLangs(r.Str("languages")), Height: r.Int("height"), Color: users.ColorIndex(r.Int64("id")),
 	}
 }
 

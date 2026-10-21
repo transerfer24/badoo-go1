@@ -90,6 +90,22 @@
 
     <section class="sec">
         <div class="sec-h">
+            <div><h2>Языки</h2><p>Важно: по ним видно, на чём вам будет удобно переписываться.</p></div>
+            <button class="btn btn-quiet btn-sm" type="button" data-open="pick-langs">{{icon "pencil" 16}} Изменить</button>
+        </div>
+        {{- if .myLangs}}
+        <ul class="chips">
+            {{- range .myLangs}}
+            <li class="pill">{{icon "int-globe" 15}}{{.Name}} - {{.LevelLabel}}</li>
+            {{- end}}
+        </ul>
+        {{- else}}
+        <p class="muted">Пока не указаны. <button class="linkish" type="button" data-open="pick-langs">Добавить языки</button></p>
+        {{- end}}
+    </section>
+
+    <section class="sec">
+        <div class="sec-h">
             <div><h2>Интересы</h2><p>По ним находят общее и начинают разговор.</p></div>
             <span class="pill">до 10</span>
         </div>
@@ -155,6 +171,45 @@
                 {{- range $k, $v := intentLabels}}{{template "me-opt" (dict "n" "intent" "v" $k "t" $v "cur" $me.Intent)}}{{end}}
             </ul></div>
             {{template "me-dialog-foot"}}</div>
+    </dialog>
+
+    {{- /* Языки (pick-langs макета): строка = кнопка-переключатель + уровень. Выбранное уходит полями lang (код)
+       и lang_level_<код>; langs_form=1 говорит серверу, что языки в этой форме есть (users.ParseProfileForm). */}}
+    <input type="hidden" name="langs_form" value="1">
+    <dialog class="modal modal-tall" id="pick-langs" aria-labelledby="h-pick-langs">
+        <div class="modal-box">
+            <header class="modal-h">
+                <div class="modal-h-main">
+                    <h2 id="h-pick-langs">Языки</h2>
+                    <p class="modal-sub"><b data-lang-count>{{len .myLangs}}</b> из {{.maxLangs}}<span data-lang-hint hidden> - снимите один, чтобы добавить другой</span></p>
+                </div>
+                <button class="modal-x" type="button" data-close aria-label="Закрыть">{{icon "x" 18}}</button>
+            </header>
+            <div class="modal-b modal-scroll" data-langs data-max="{{.maxLangs}}">
+                <ul class="langs">
+                    {{- range .langRows}}
+                    {{- $lv := index $.langLevel .Code}}
+                    <li class="lang{{if $lv}} on{{end}}">
+                        <label class="lang-pick">
+                            <input class="sr" type="checkbox" name="lang" value="{{.Code}}"{{if $lv}} checked{{end}}>
+                            {{icon "check" 16}}<span>{{.Name}}</span>
+                        </label>
+                        <label class="lang-level">
+                            <span class="sr">Уровень: {{.Name}}</span>
+                            <select name="lang_level_{{.Code}}"{{if not $lv}} disabled{{end}}>
+                                {{- range $.langLevels}}<option value="{{.Key}}"{{if eq .Key $lv}} selected{{end}}>{{.Label}}</option>{{end}}
+                            </select>
+                        </label>
+                    </li>
+                    {{- end}}
+                </ul>
+            </div>
+            <footer class="modal-f">
+                <p class="modal-note modal-note-f">{{icon "info" 15}}<span>По языкам видно, на чём вам будет удобно переписываться.</span></p>
+                <button class="btn btn-ghost" type="button" data-close>Отмена</button>
+                <button class="btn btn-primary" type="submit">Сохранить</button>
+            </footer>
+        </div>
     </dialog>
 </form>
 {{template "lightbox"}}

@@ -163,6 +163,7 @@ var App = go1.Config{
 		{"PUT api/v1/me", "api-me/update"},
 		{"DELETE api/v1/me", "api-me/delete"},
 		{"PUT api/v1/me/settings", "api-me/settings"},
+		{"PUT api/v1/me/languages", "api-me/languages"},
 		{"POST api/v1/me/photos", "api-me/photo-upload"},
 		{"DELETE api/v1/me/photos/<id:\\d+>", "api-me/photo-delete"},
 		{"POST api/v1/me/photos/<id:\\d+>/main", "api-me/photo-main"},

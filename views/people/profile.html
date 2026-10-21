@@ -55,6 +55,9 @@
         {{- with interests $u.interests}}
         <div class="bio"><h2>Интересы</h2><ul class="chips">{{range .}}<li class="pill">{{.}}</li>{{end}}</ul></div>
         {{- end}}
+        {{- with langs $u.languages}}
+        <div class="bio"><h2>Языки</h2><ul class="chips">{{range .}}<li class="pill">{{icon "int-globe" 15}}{{.Name}} - {{.LevelLabel}}</li>{{end}}</ul></div>
+        {{- end}}
 
         {{- if not .is_me}}
         <div class="safety">

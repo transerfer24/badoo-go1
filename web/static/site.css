@@ -95,3 +95,6 @@ Amura · дополнения к app.css. app.css — собранный фай�
 .legal h2 { font-size: 19px; margin: 28px 0 8px; }
 .legal ul { padding-left: 20px; display: grid; gap: 6px; }
 .legal a { color: var(--accent, #0E7C74); text-decoration: underline; }
+
+/* .linkish на кнопке (а не ссылке): без фона и рамки кнопки — как текстовая ссылка */
+button.linkish { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
