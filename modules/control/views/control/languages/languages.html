@@ -1,0 +1,98 @@
+{{.View.SetTitle "Языки"}}
+
+<section style="padding-top: 16px;">
+    <form id="filters" class="am-filters" autocomplete="off">
+        <div class="form-group am-wide">
+            <label>Поиск</label>
+            <input name="search" type="search" class="form-control" placeholder="Название, самоназвание или код">
+        </div>
+        <div class="form-group">
+            <label>Показ</label>
+            <select name="active" class="form-control">
+                <option value="">Все</option>
+                <option value="1">В выборе</option>
+                <option value="0">Скрытые</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Сортировка</label>
+            <select name="sort" class="form-control">
+                <option value="">Как в списке выбора</option>
+                <option value="users">Чаще выбирают</option>
+            </select>
+        </div>
+        <div class="form-group am-auto"><label>&nbsp;</label><div class="am-inline">Всего: <b id="count">0</b></div></div>
+        <div class="form-group am-auto am-push"><label>&nbsp;</label><button type="button" class="btn btn--primary-1 btn--sm lang-add"><i class="fa fa-plus"></i> Добавить язык</button></div>
+    </form>
+</section>
+
+<section style="min-height: 700px;">
+    <table class="border--round table--alternate-row">
+        <thead><tr><th>Порядок</th><th>Код</th><th>Название</th><th>Самоназвание</th><th>В анкетах</th><th>Показ</th><th class="text-center">Действия</th></tr></thead>
+        <tbody id="languages_result"></tbody>
+    </table>
+    <p style="font-size:12px;color:#768192;margin-top:10px;">Люди выбирают до 5 языков с уровнем: свободно, говорю, читаю, учу. Меньший «Порядок» - выше в списке выбора.
+        Скрытый язык пропадает из выбора, но остаётся у тех, кто его уже указал. Удалить можно только язык, который никто не выбрал.</p>
+</section>
+
+<script nonce="{{.Nonce}}">
+    var list;
+    function lang_form(v) {
+        v = v || { id: 0, code: '', name: '', native: '', pos: 1000, active: 1 };
+        return '<form id="lang_form" autocomplete="off">' +
+            '<input type="hidden" name="id" value="' + v.id + '">' +
+            '<div class="form-group"><label>Код ISO 639</label><input name="code" class="form-control" maxlength="3" value="' + esc(v.code) + '"' + (parseInt(v.id) ? ' disabled' : ' placeholder="например, es"') + '>' +
+            (parseInt(v.id) ? '<small class="text-muted">Код не меняется: на него ссылаются анкеты.</small>' : '') + '</div>' +
+            '<div class="form-group"><label>Название по-русски</label><input name="name" class="form-control" maxlength="64" value="' + esc(v.name) + '" placeholder="Испанский"></div>' +
+            '<div class="form-group"><label>Самоназвание</label><input name="native" class="form-control" maxlength="64" value="' + esc(v.native) + '" placeholder="Español"></div>' +
+            '<div class="form-group"><label>Порядок в списке</label><input name="pos" type="number" class="form-control" value="' + esc(v.pos) + '"></div>' +
+            '<div class="form-group mb-0"><label><input type="checkbox" name="active" value="1"' + (parseInt(v.active) ? ' checked' : '') + '> Показывать в выборе</label></div>' +
+            '</form>';
+    }
+    function edit(v) {
+        BootstrapDialog.show({
+            title: v ? 'Язык: ' + esc(v.name) : 'Новый язык', message: lang_form(v), animate: false, closable: true, nl2br: false,
+            buttons: [
+                { label: 'Сохранить', cssClass: 'btn btn--primary-1', action: function (d) {
+                    var f = form_data('#lang_form');
+                    f.active = $('#lang_form [name=active]').is(':checked') ? 1 : 0;
+                    post('/control/languages/save', f, function () { d.close(); message_ok('Сохранено'); list.reload(); });
+                } },
+                { label: 'Отмена', cssClass: 'btn btn--secondary', action: function (d) { d.close(); } }
+            ]
+        });
+    }
+    $(function () {
+        filters_from_url('#filters');
+        list = scroll_list({
+            url: '/control/languages/get-languages', tbody: '#languages_result', cols: 7, count: '#count',
+            data: function () { var d = form_data('#filters'); filters_to_url(d); return d; },
+            row: function (v) {
+                var on = parseInt(v.active), n = parseInt(v.users) || 0;
+                var acts = '<button class="btn btn-sm btn--secondary lang-edit" title="Изменить"><i class="fa fa-pencil"></i></button> ' +
+                    '<button class="btn btn-sm btn--secondary lang-toggle" title="' + (on ? 'Скрыть из выбора' : 'Показать в выборе') + '"><i class="fa fa-eye' + (on ? '-slash' : '') + '"></i></button>' +
+                    (n ? '' : ' <button class="btn btn-sm btn-danger lang-delete" title="Удалить"><i class="fa fa-trash"></i></button>');
+                return '<tr data-json="' + esc(JSON.stringify(v)) + '"><td>' + esc(v.pos) + '</td><td><code>' + esc(v.code) + '</code></td><td><b>' + esc(v.name) + '</b></td><td>' + esc(v.native) + '</td>' +
+                    '<td>' + (n ? n : '<span style="color:#999;">0</span>') + '</td><td>' + (on ? pill('в выборе', 'green') : pill('скрыт', 'grey')) + '</td>' +
+                    '<td class="text-center" style="white-space:nowrap;">' + acts + '</td></tr>';
+            }
+        });
+        list.reload();
+        var timer = null;
+        $('#filters').on('input', 'input', function () { clearTimeout(timer); timer = setTimeout(list.reload, 400); });
+        $('#filters').on('change', 'select', list.reload);
+        $('#filters').on('submit', function (e) { e.preventDefault(); });
+
+        var row = function (el) { return JSON.parse($(el).closest('tr').attr('data-json')); };
+        $('.lang-add').on('click', function () { edit(null); });
+        $(document).on('click', '.lang-edit', function () { edit(row(this)); });
+        $(document).on('click', '.lang-toggle', function () {
+            post('/control/languages/toggle', { id: row(this).id }, function () { list.reload(); });
+        });
+        $(document).on('click', '.lang-delete', function () {
+            var v = row(this);
+            confirm_action({ title: 'Удалить язык «' + esc(v.name) + '»?', danger: true, ok: 'Удалить', message: 'Его никто не выбрал, анкеты не пострадают.' },
+                function () { post('/control/languages/delete', { id: v.id }, function () { message_ok('Удалён'); list.reload(); }); });
+        });
+    });
+</script>

@@ -102,7 +102,7 @@ var icons = map[string]string{
 	"index": "fa-dashboard", "users": "fa-users", "chats": "fa-comments", "meetups": "fa-calendar",
 	"reports": "fa-flag", "verification": "fa-check-circle", "photos": "fa-picture-o",
 	"log": "fa-history", "permissions": "fa-key",
-	"analytics": "fa-line-chart", "votes": "fa-heart", "visits": "fa-eye", "sessions": "fa-mobile", "system": "fa-server",
+	"analytics": "fa-line-chart", "votes": "fa-heart", "visits": "fa-eye", "sessions": "fa-mobile", "system": "fa-server", "languages": "fa-globe",
 }
 
 // иконки групп меню по названию; группа, заведённая в «Правах» без иконки, — папка

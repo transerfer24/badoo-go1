@@ -8,7 +8,7 @@ Package control — админка /control веб-версии Amura, как mo
 
 Разделы: Дашборд (index), Пользователи (users), Переписка (chats), Встречи (meetups), Модерация → Жалобы (reports),
 Верификация (verification), Фото (photos), Система → Журнал действий (log), Права (permissions), Входы и сессии
-(sessions), Состояние системы (system); Аналитика → Воронка и удержание (analytics), Симпатии и антиспам (votes),
+(sessions), Состояние системы (system), Языки (languages, справочник анкеты); Аналитика → Воронка и удержание (analytics), Симпатии и антиспам (votes),
 Гости (visits) — эти пять только читают данные приложения.
 
 Первый вход: ./badoo-app control/super <email> (на хостинге — make control-super WHO=<email>), затем /control.
@@ -55,6 +55,7 @@ func (m *Module) Controllers() []any {
 		&VisitsController{},
 		&SessionsController{},
 		&SystemController{},
+		&LanguagesController{},
 	}
 }
 

@@ -194,6 +194,7 @@ var LOG_LABELS = { ban: pill('блокировка', 'red'), unban: pill('раз
     premium: pill('Premium', 'purple'), 'premium-off': pill('Premium снят', 'grey'), edit: pill('правка анкеты', 'blue'), 'photo-delete': pill('фото удалено', 'yellow'),
     logout: pill('выход везде', 'grey'), delete: pill('аккаунт удалён', 'red'), 'message-delete': pill('сообщение удалено', 'yellow'),
     'reports-reject': pill('жалобы отклонены', 'grey'), 'report-reopen': pill('жалоба снова открыта', 'grey'), permission: pill('права', 'blue'), 'meetup-delete': pill('событие удалено', 'yellow'), section: pill('раздел', 'blue'),
+    'language-add': pill('язык добавлен', 'green'), 'language-edit': pill('язык изменён', 'blue'), 'language-hide': pill('язык скрыт', 'grey'), 'language-show': pill('язык показан', 'green'), 'language-delete': pill('язык удалён', 'yellow'),
     'session-end': pill('сессия завершена', 'grey'), export: pill('выгрузка CSV', 'blue') };
 function log_label(a) { return LOG_LABELS[a] || esc(a); }
 
