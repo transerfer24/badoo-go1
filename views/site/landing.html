@@ -1,5 +1,5 @@
 {{- /* Главная до входа в дизайне dating2 (index.php макета). Структура макета, тексты — только про то, что продукт
-   правда делает. Вместо коллажа лиц — примеры интерфейса: реальные анкеты на открытой странице не показываем. */ -}}
+   правда делает. В коллаже — иллюстрации макета, не анкеты: реальных людей на открытой странице не показываем. */ -}}
 {{.View.SetTitle "Знакомства рядом"}}
 <div class="landing">
 
@@ -19,20 +19,22 @@
         </div>
 
         <div class="hero-art" aria-hidden="true">
-            <figure class="hero-card hero-c1 hero-feature">
-                <span class="hero-ic">{{icon "shield" 34}}</span>
-                <b>Фото проверено</b>
-                <i>селфи с жестом по образцу</i>
+            {{- /* Фото — иллюстрации из макета dating2 (сгенерированы, реальных людей на них нет), не анкеты Amura:
+               поэтому подписи про продукт, а не «имя, возраст». */}}
+            <figure class="hero-card hero-c1 hero-photo">
+                <picture><source srcset="/static/img/landing/anya-1.webp" type="image/webp"><img src="/static/img/landing/anya-1.jpg" alt="" loading="eager"></picture>
+                <span class="hero-ic">{{icon "shield" 22}}</span>
+                <figcaption><b>Фото проверено</b><i>селфи с жестом по образцу</i></figcaption>
             </figure>
-            <figure class="hero-card hero-c2 hero-feature hero-feature-warm">
-                <span class="hero-ic">{{icon "heart-filled" 30}}</span>
-                <b>Это взаимно!</b>
-                <i>теперь можно написать</i>
+            <figure class="hero-card hero-c2 hero-photo">
+                <picture><source srcset="/static/img/landing/marat-1.webp" type="image/webp"><img src="/static/img/landing/marat-1.jpg" alt="" loading="eager"></picture>
+                <span class="hero-ic hero-ic-warm">{{icon "heart-filled" 20}}</span>
+                <figcaption><b>Это взаимно!</b><i>теперь можно написать</i></figcaption>
             </figure>
-            <figure class="hero-card hero-c3 hero-feature hero-feature-soft">
-                <span class="hero-ic">{{icon "map-pin" 28}}</span>
-                <b>1,2 км от вас</b>
-                <i>«Рядом» — все, кто близко</i>
+            <figure class="hero-card hero-c3 hero-photo">
+                <picture><source srcset="/static/img/landing/vera-1.webp" type="image/webp"><img src="/static/img/landing/vera-1.jpg" alt="" loading="eager"></picture>
+                <span class="hero-ic">{{icon "map-pin" 20}}</span>
+                <figcaption><b>1,2 км от вас</b><i>все, кто близко</i></figcaption>
             </figure>
         </div>
     </section>

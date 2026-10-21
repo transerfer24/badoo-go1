@@ -27,24 +27,21 @@ Amura · дополнения к app.css. app.css — собранный фай�
 .flash { margin-bottom: var(--s4); padding: var(--s3) var(--s4); border-radius: var(--r-sm);
          background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
 
-/* Главная: карточки-примеры интерфейса вместо коллажа лиц (реальные анкеты гостям не показываем) */
-.hero-feature { display: grid; align-content: end; gap: 4px; padding: var(--s5); color: #fff;
-                background: linear-gradient(155deg, var(--accent) 0%, color-mix(in oklab, var(--accent) 55%, #0B0F0E) 100%); }
-.hero-feature::after { display: none; }
-.hero-feature-warm { background: linear-gradient(155deg, var(--warm) 0%, color-mix(in oklab, var(--warm) 55%, #0B0F0E) 100%); }
-.hero-feature-soft { background: linear-gradient(155deg, var(--gold) 0%, color-mix(in oklab, var(--gold) 50%, #0B0F0E) 100%); }
-.hero-feature .hero-ic { position: absolute; top: var(--s5); left: var(--s5); width: 58px; height: 58px; border-radius: 18px;
-                         display: grid; place-items: center; background: rgba(255,255,255,.16);
-                         -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-.hero-feature .hero-ic .ic { color: #fff; }
-.hero-feature b { position: static; font-size: 22px; text-shadow: none; }
-.hero-feature i { font-style: normal; font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.82); }
+/* Главная: коллаж из иллюстраций макета (фото — фоном, поверх стеклянный значок и подпись про продукт) */
+.hero-photo picture, .hero-photo img { display: block; width: 100%; height: 100%; }
+.hero-photo img { object-fit: cover; }
+.hero-photo .hero-ic { position: absolute; top: 14px; left: 14px; z-index: 2; width: 42px; height: 42px; border-radius: 13px;
+                       display: grid; place-items: center; color: #fff; background: rgba(10,14,13,.38);
+                       border: 1px solid rgba(255,255,255,.22); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.hero-photo .hero-ic-warm { background: color-mix(in oklab, var(--warm) 70%, transparent); }
+.hero-photo figcaption { position: absolute; left: 16px; right: 16px; bottom: 14px; z-index: 2; display: grid; gap: 2px; }
+.hero-photo figcaption b { position: static; font-size: 17px; }
+.hero-photo figcaption i { font-style: normal; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.85);
+                           text-shadow: 0 1px 8px rgba(0,0,0,.5); }
 @media (max-width: 560px) {
-    .hero-feature { padding: var(--s4); }
-    .hero-feature .hero-ic { top: var(--s4); left: var(--s4); width: 40px; height: 40px; border-radius: 12px; }
-    .hero-feature .hero-ic .ic { width: 20px; height: 20px; }
-    .hero-feature b { font-size: 16px; }
-    .hero-feature i { font-size: 12px; }
+    .hero-photo .hero-ic { width: 34px; height: 34px; border-radius: 10px; top: 10px; left: 10px; }
+    .hero-photo figcaption b { font-size: 14px; }
+    .hero-photo figcaption i { font-size: 11px; }
 }
 
 /* Вход и онбординг: карточка .auth-box из макета; формы шагов — сеткой, вторичные кнопки под основной */
