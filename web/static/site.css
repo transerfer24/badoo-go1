@@ -91,3 +91,10 @@ Amura · дополнения к app.css. app.css — собранный фай�
 .filters-end .check { margin-right: var(--s3); align-items: center; }
 .filters-end .check:last-of-type { margin-right: auto; }
 @media (max-width: 520px) { .filters-end .check { flex: 1 1 100%; margin-right: 0; } }
+
+/* Правила и политика (/terms, /privacy) — длинный текст узкой колонкой */
+.legal { max-width: 720px; margin: 0 auto; padding: var(--s5, 24px) var(--s4, 16px) 48px; line-height: 1.6; }
+.legal h1 { margin-bottom: 8px; }
+.legal h2 { font-size: 19px; margin: 28px 0 8px; }
+.legal ul { padding-left: 20px; display: grid; gap: 6px; }
+.legal a { color: var(--accent, #0E7C74); text-decoration: underline; }

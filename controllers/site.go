@@ -51,3 +51,15 @@ func (c *SiteController) ActionAvatar() error {
 	c.Response.Header().Set("Cache-Control", "public, max-age=3600")
 	return c.Bytes("image/svg+xml", []byte(svg))
 }
+
+// GET /terms, /privacy — правила и политика конфиденциальности. Ссылки на них нужны App Store и Google Play,
+// экрану входа приложения и настройкам. Оператор и почта поддержки — LEGAL_OWNER / SUPPORT_EMAIL в .env.
+func (c *SiteController) ActionTerms() error   { return c.legal("terms", "Правила Amura") }
+func (c *SiteController) ActionPrivacy() error { return c.legal("privacy", "Политика конфиденциальности") }
+
+func (c *SiteController) legal(view, title string) error {
+	owner, _ := app.Params["legal.owner"].(string)
+	email, _ := app.Params["legal.email"].(string)
+	c.Response.Header().Set("Cache-Control", "public, max-age=600")
+	return c.Render(view, web.M{"title": title, "owner": owner, "email": email, "updated": "21 октября 2026"})
+}

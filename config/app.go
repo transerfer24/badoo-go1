@@ -98,6 +98,9 @@ var App = go1.Config{
 		"photos.prefix":     config.Env("S3_PREFIX", "badoo/prod/"), // папка Amura в общем бакете
 		"amura.dev":         config.Env("AMURA_DEV", "1") == "1",
 		"amura.chat_verify": config.Env("AMURA_CHAT_VERIFY", "0") == "1",
+		// Правила и политика (/terms, /privacy; на них ссылаются приложение и сторы): кто оператор и куда писать.
+		"legal.owner": config.Env("LEGAL_OWNER", "Amura"),
+		"legal.email": config.Env("SUPPORT_EMAIL"),
 	},
 	Controllers: []any{
 		&controllers.SiteController{},
@@ -123,6 +126,8 @@ var App = go1.Config{
 		{"onboarding", "auth/onboarding"},
 		{"encounters", "encounters/index"},
 		{"GET avatar/<id:\\d+>.svg", "site/avatar"},
+		{"GET terms", "site/terms"},
+		{"GET privacy", "site/privacy"},
 		{"me", "me/index"},
 		{"POST me/photos", "me/photo-upload"},
 		{"POST me/photos/<id:\\d+>/delete", "me/photo-delete"},
