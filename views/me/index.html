@@ -176,7 +176,7 @@
     {{- /* Языки (pick-langs макета): строка = кнопка-переключатель + уровень. Выбранное уходит полями lang (код)
        и lang_level_<код>; langs_form=1 говорит серверу, что языки в этой форме есть (users.ParseProfileForm). */}}
     <input type="hidden" name="langs_form" value="1">
-    <dialog class="modal modal-tall" id="pick-langs" aria-labelledby="h-pick-langs">
+    <dialog class="modal modal-tall modal-has-search" id="pick-langs" aria-labelledby="h-pick-langs">
         <div class="modal-box">
             <header class="modal-h">
                 <div class="modal-h-main">
@@ -185,11 +185,17 @@
                 </div>
                 <button class="modal-x" type="button" data-close aria-label="Закрыть">{{icon "x" 18}}</button>
             </header>
+            {{- /* Поиск по названию, самоназванию и коду (data-q строки); без name - в форму не уходит */}}
+            <label class="modal-search">
+                {{icon "search" 18}}<span class="sr">Найти язык</span>
+                <input type="search" data-lang-search placeholder="Найти язык" autocomplete="off" enterkeyhint="search">
+            </label>
             <div class="modal-b modal-scroll" data-langs data-max="{{.maxLangs}}">
+                <p class="muted small" data-lang-none hidden>Такого языка нет в списке.</p>
                 <ul class="langs">
                     {{- range .langRows}}
                     {{- $lv := index $.langLevel .Code}}
-                    <li class="lang{{if $lv}} on{{end}}">
+                    <li class="lang{{if $lv}} on{{end}}" data-q="{{.Name}} {{.Native}} {{.Code}}">
                         <label class="lang-pick">
                             <input class="sr" type="checkbox" name="lang" value="{{.Code}}"{{if $lv}} checked{{end}}>
                             {{icon "check" 16}}<span>{{.Name}}</span>

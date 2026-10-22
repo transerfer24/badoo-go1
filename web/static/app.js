@@ -97,8 +97,20 @@
     document.addEventListener("click", (e) => {
       if (e.target.closest('[data-open="pick-langs"]')) before = rows().map((r) => [$("input", r).checked, $("select", r).value]);
     }, true);
+    // поиск: прячем строки без запроса (ё = е); Enter в поле не отправляет форму
+    const q = $("[data-lang-search]", dlg), none = $("[data-lang-none]", dlg);
+    const norm = (s) => s.toLowerCase().replace(/ё/g, "е").trim();
+    const filter = () => {
+      const v = norm(q.value);
+      let shown = 0;
+      rows().forEach((r) => { const hit = !v || norm(r.dataset.q).includes(v); r.hidden = !hit; shown += hit; });
+      none.hidden = shown > 0;
+    };
+    q?.addEventListener("input", filter);
+    q?.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
     dlg.closest("form")?.addEventListener("submit", () => (saving = true));
     dlg.addEventListener("close", () => {
+      if (q && q.value) { q.value = ""; filter(); }
       if (saving || !before) return;
       rows().forEach((r, i) => { $("input", r).checked = before[i][0]; $("select", r).value = before[i][1]; });
       sync();

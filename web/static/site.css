@@ -98,3 +98,20 @@ Amura · дополнения к app.css. app.css — собранный фай�
 
 /* .linkish на кнопке (а не ссылке): без фона и рамки кнопки — как текстовая ссылка */
 button.linkish { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+
+/* Поиск в длинном окне выбора (языки): отдельная строка между шапкой и списком, список скроллится под ним */
+.modal-has-search .modal-box { grid-template-rows: auto auto 1fr auto; }
+.modal-search { position: relative; display: block; margin: 0 var(--s5) var(--s3); }
+.modal-search .ic { position: absolute; z-index: 1; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+/* :not() — чтобы перебить базовое правило полей из app.css (у него четыре :not и выше вес) */
+.modal-search input[type=search]:not([type=checkbox]):not([type=radio]) { padding-left: 42px; background: var(--surface-2); }
+.modal-has-search .modal-box { height: min(78vh, 720px); } /* при фильтрации окно не сжимается */
+@media (max-width: 520px) { .modal-has-search .modal-box { height: 86vh; } }
+.modal-has-search .modal-b, .modal-has-search .langs { align-content: start; }
+.modal-search input[type=search]::-webkit-search-cancel-button { cursor: pointer; }
+.langs .lang[hidden] { display: none; }
+
+/* Языки на телефоне: длинное название («Азербайджанский») распирало строку шире окна - даём колонке сжиматься,
+   слово переносим по слогам (lang="ru" у страницы), в крайнем случае где угодно */
+.modal-b > .langs, .lang-pick { min-width: 0; }
+.lang-pick span { hyphens: auto; overflow-wrap: anywhere; }
